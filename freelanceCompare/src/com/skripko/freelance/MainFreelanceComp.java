@@ -1,14 +1,15 @@
 package com.skripko.freelance;
 
 import com.codeborne.selenide.SelenideElement;
+import com.codeborne.selenide.WebDriverRunner;
 import com.skripko.common.ExcelIO;
 import com.skripko.common.SelenideUtils;
 import com.skripko.freelance.platform.FlProcessor;
 import com.skripko.freelance.platform.Guru;
 import com.skripko.freelance.platform.SearchQuery;
+import net.lightbody.bmp.proxy.ProxyServer;
 import org.reflections.Reflections;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -17,6 +18,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.codeborne.selenide.Selenide.open;
+import static org.openqa.selenium.net.PortProber.findFreePort;
+
 
 public class MainFreelanceComp {
 	public static final int JOBS_OF_PERIOD = 30;
@@ -28,7 +31,24 @@ public class MainFreelanceComp {
 		SelenideUtils.configureBrowser(1000);
 	}
 
-	public static void main(String[] args) throws IOException, IllegalAccessException {
+	public static void main(String[] args) throws Exception {
+		ProxyServer proxyServer = new ProxyServer(findFreePort());
+		proxyServer.start();
+//		WebDriverRunner.getAndCheckWebDriver()
+		WebDriverRunner.setProxy(proxyServer.seleniumProxy());
+//		open("2ip.ru");
+		open("vk.com");
+		Thread.sleep(60000);
+
+		if (proxyServer != null) {
+			proxyServer.stop();
+		}
+		WebDriverRunner.setProxy(null);
+		WebDriverRunner.closeWebDriver();
+		if (true) return;
+
+
+
 		long startTime = System.currentTimeMillis();
 		Reflections reflections = new Reflections(FlProcessor.class.getPackage().getName());
 		Set<Class<? extends FlProcessor>> sites = reflections.getSubTypesOf(FlProcessor.class);

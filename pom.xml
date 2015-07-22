@@ -32,6 +32,25 @@
 						<artifactId>reflections</artifactId>
 						<version>0.9.9-RC1</version>
 				</dependency>
+				<dependency>
+					<groupId>net.lightbody.bmp</groupId>
+					<artifactId>browsermob-proxy</artifactId>
+					<version>2.0.0</version>
+					<!--<exclusions>
+						<exclusion>
+							<groupId>org.seleniumhq.selenium</groupId>
+							<artifactId>selenium-api</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.apache.httpcomponents</groupId>
+							<artifactId>httpclient</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.apache.httpcomponents</groupId>
+							<artifactId>httpmime</artifactId>
+						</exclusion>
+					</exclusions>-->
+				</dependency>
     </dependencies>
 
 
@@ -47,4 +66,5 @@
             </plugin>
         </plugins>
     </build>
+
 </project>
