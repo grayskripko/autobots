@@ -1,12 +1,9 @@
-package com.skripko.freelance;
+package com.skripko.indeed;
 
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
 import com.skripko.common.ExcelIO;
 import com.skripko.common.SelenideUtils;
-import com.skripko.freelance.platform.FlProcessor;
-import com.skripko.freelance.platform.Guru;
-import com.skripko.freelance.platform.SearchQuery;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.Proxy.ProxyType;
 import org.reflections.Reflections;
@@ -15,7 +12,6 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.codeborne.selenide.Selenide.open;
@@ -26,7 +22,6 @@ public class MainFreelanceComp {
 	public static final int JOBS_OF_PERIOD = 30;
 	public static final String OUTPUT_XLSX = "currentJob.xlsx";
 	private static String passk = "psprt";
-	private static final Class<? extends FlProcessor> CURRENT_SITE_CLASS = Guru.class;
 
 	public static void main(String[] args) throws Exception {
 		SelenideUtils.configureBrowser(1000);
@@ -39,7 +34,6 @@ public class MainFreelanceComp {
 			closeWebDriver();
 		}
 
-		if (true) return;
 
 
 
