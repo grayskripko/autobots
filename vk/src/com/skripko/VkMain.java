@@ -20,7 +20,7 @@ public class VkMain extends SelenideUtils {
 	public static final String[] PUBLIC_URLS = {"https://vk.com/vk.atheism"};
 
 	static {
-		SelenideUtils.configureBrowser(2000);
+		SelenideUtils.configureBrowser(BrowserType.CHROME);
 	}
 
 	public static void main(String[] args) {

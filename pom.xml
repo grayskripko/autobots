@@ -14,7 +14,6 @@
 			<module>common</module>
 			<module>freelanceCompare</module>
 			<module>vk</module>
-			<module>indeed</module>
 		</modules>
 
     <dependencies>
@@ -33,25 +32,38 @@
 						<artifactId>reflections</artifactId>
 						<version>0.9.9-RC1</version>
 				</dependency>
+
 				<dependency>
-					<groupId>net.lightbody.bmp</groupId>
-					<artifactId>browsermob-proxy</artifactId>
-					<version>2.0.0</version>
-					<!--<exclusions>
-						<exclusion>
-							<groupId>org.seleniumhq.selenium</groupId>
-							<artifactId>selenium-api</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.apache.httpcomponents</groupId>
-							<artifactId>httpclient</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.apache.httpcomponents</groupId>
-							<artifactId>httpmime</artifactId>
-						</exclusion>
-					</exclusions>-->
+					<groupId>com.github.detro.ghostdriver</groupId>
+					<artifactId>phantomjsdriver</artifactId>
+					<version>1.1.0</version>
 				</dependency>
+				<dependency>
+					<groupId>org.seleniumhq.selenium</groupId>
+					<artifactId>selenium-remote-driver</artifactId>
+					<version>2.46.0</version>
+				</dependency>
+
+				<!--<dependency>-->
+					<!--<groupId>net.lightbody.bmp</groupId>-->
+					<!--<artifactId>browsermob-proxy</artifactId>-->
+					<!--<version>2.0.0</version>-->
+					<!--&lt;!&ndash;may produce java.lang.NoClassDefFoundError: org/openqa/selenium/remote/RemoteWebElement without exclusions&ndash;&gt;-->
+					<!--<exclusions>-->
+						<!--<exclusion>-->
+							<!--<groupId>org.seleniumhq.selenium</groupId>-->
+							<!--<artifactId>selenium-api</artifactId>-->
+						<!--</exclusion>-->
+						<!--<exclusion>-->
+							<!--<groupId>org.apache.httpcomponents</groupId>-->
+							<!--<artifactId>httpclient</artifactId>-->
+						<!--</exclusion>-->
+						<!--<exclusion>-->
+							<!--<groupId>org.apache.httpcomponents</groupId>-->
+							<!--<artifactId>httpmime</artifactId>-->
+						<!--</exclusion>-->
+					<!--</exclusions>&ndash;&gt;-->
+				<!--</dependency>-->
     </dependencies>
 
 

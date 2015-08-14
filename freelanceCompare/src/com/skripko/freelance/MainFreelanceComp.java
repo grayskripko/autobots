@@ -1,14 +1,11 @@
 package com.skripko.freelance;
 
 import com.codeborne.selenide.SelenideElement;
-import com.codeborne.selenide.WebDriverRunner;
 import com.skripko.common.ExcelIO;
 import com.skripko.common.SelenideUtils;
 import com.skripko.freelance.platform.FlProcessor;
 import com.skripko.freelance.platform.Guru;
 import com.skripko.freelance.platform.SearchQuery;
-import org.openqa.selenium.Proxy;
-import org.openqa.selenium.Proxy.ProxyType;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Field;
@@ -19,7 +16,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.codeborne.selenide.Selenide.open;
-import static com.codeborne.selenide.WebDriverRunner.closeWebDriver;
+import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
 
 
 public class MainFreelanceComp {
@@ -29,20 +26,7 @@ public class MainFreelanceComp {
 	private static final Class<? extends FlProcessor> CURRENT_SITE_CLASS = Guru.class;
 
 	public static void main(String[] args) throws Exception {
-		SelenideUtils.configureBrowser(1000);
-		String[] proxyHostPorts = {"113.204.212.42:3128", "176.104.46.96:3128", "60.165.46.25:55336"};
-		for (String proxyHostPort : proxyHostPorts) {
-			WebDriverRunner.setProxy(new Proxy().setHttpProxy(proxyHostPort)
-					.setFtpProxy(proxyHostPort).setSslProxy(proxyHostPort).setProxyType(ProxyType.MANUAL));
-			open("http://2ip.ru");
-			Thread.sleep(10000);
-			closeWebDriver();
-		}
-
-		if (true) return;
-
-
-
+		SelenideUtils.configureBrowser(CHROME);
 		long startTime = System.currentTimeMillis();
 		Reflections reflections = new Reflections(FlProcessor.class.getPackage().getName());
 		Set<Class<? extends FlProcessor>> sites = reflections.getSubTypesOf(FlProcessor.class);
