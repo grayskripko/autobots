@@ -1,12 +1,19 @@
 package com.skripko.common;
 
 import com.codeborne.selenide.ElementsCollection;
+import com.codeborne.selenide.Screenshots;
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.Proxy.ProxyType;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.codeborne.selenide.Condition.*;
@@ -14,13 +21,20 @@ import static com.codeborne.selenide.Selenide.*;
 import static com.codeborne.selenide.WebDriverRunner.closeWebDriver;
 import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
 
-//todo adjusting disable images, css rendering and javascript
-//todo method alternative for adjusting timeout like transaction style
 
 public class ProxyUtils {
 	private static long startTime = System.currentTimeMillis();
 
 	public static void main(String[] args) throws Exception {
+		int size = (int) 1e7;
+		List<Double> list = new ArrayList<>(size);
+		for (int i = 0; i < size; i++) {
+			list.add(Math.random() * size);
+		}
+//		list = list.stream().parallel().unordered().map(i -> Math.pow(i, 10)).collect(Collectors.toList());
+//		debug(" ");
+//		if(true)return;
+
 		SelenideUtils.configureBrowser(CHROME);
 		open("http://proxylist.hidemyass.com/");
 		debug("Hidemyass has been opened");
@@ -42,25 +56,34 @@ public class ProxyUtils {
 		SelenideUtils.strictWait();
 		SelenideElement lastRowOfProxyList = $(tableSelector + ":nth-of-type(100)").should(exist).$("td");
 		String lastProxyDuration = lastRowOfProxyList.getText();
-		List<String> proxyListRows = $$(tableSelector).stream()
+		List<String> proxyListRows = $$(tableSelector).stream()//.parallel().unordered()
 				.map(row -> row.$$("td").get(1).getText()
 						+ ':' + row.$$("td").get(2).getText()).collect(Collectors.toList());
 		debug("Collected proxies count: " + proxyListRows.size());
 		debug("Last proxy duration: " + lastProxyDuration);
+		closeWebDriver();
 
-		proxyListRows.stream().forEach(proxyInfo -> {
-			applyProxy(proxyInfo);
+		proxyListRows.stream().parallel().forEach(proxyInfo -> {
+			ExecutorService service = Executors.newSingleThreadExecutor();
 			try {
-				open("http://2ip.ru");
-			} catch (Throwable e) {
-				e.printStackTrace();
-				System.exit(1);
+				final Future<Boolean> oneTaskResult = service.submit(() -> {
+					applyProxy(proxyInfo);
+					debug(proxyInfo);
+					open("http://2ip.ru");
+					ElementsCollection proxyDesc = $("#content table").waitUntil(exist, 30 * 1000).$$("tr");
+					if (proxyDesc.isEmpty()) {
+						Screenshots.takeScreenShot(new Date().toString());
+					}
+					debug(proxyDesc.filter(matchText("Имя вашего компьютера:")).get(0).getText());
+					return true;
+				});
+				oneTaskResult.get(60, TimeUnit.SECONDS);
+			} catch (Throwable th) {
+				th.getMessage();
+				closeWebDriver();
+			} finally {
+				service.shutdown();
 			}
-
-			debug($$("#content table tr").size());
-			debug($("#content table").getText());
-			debug($$("#content table tr").filter(matchText("Откуда вы:")).get(0).getText());
-			SelenideUtils.humanWait(5000);
 		});
 	}
 
@@ -74,8 +97,6 @@ public class ProxyUtils {
 		proxy.setProxyType(ProxyType.MANUAL);
 		if (WebDriverRunner.isPhantomjs()) {
 			SelenideUtils.configurePhantom(proxy);
-		} else {
-			WebDriverRunner.setProxy(proxy);
 		}
 		WebDriverRunner.setProxy(proxy);
 	}

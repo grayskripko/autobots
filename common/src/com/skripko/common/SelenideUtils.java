@@ -2,7 +2,6 @@ package com.skripko.common;
 
 import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.WebDriverRunner;
-import com.google.gson.JsonObject;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
@@ -19,6 +18,7 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.io.File;
 import java.util.logging.Level;
 
 import static org.openqa.selenium.remote.CapabilityType.*;
@@ -33,7 +33,7 @@ public class SelenideUtils {
 	}
 
 	public static void configureBrowser(BrowserType browserType) {
-		Configuration.holdBrowserOpen = false;
+		Configuration.holdBrowserOpen = true;
 		Configuration.startMaximized = false;
 		Configuration.holdBrowserOpen = false;
 		Configuration.screenshots = false;
@@ -43,7 +43,7 @@ public class SelenideUtils {
 			case CHROME:
 				System.setProperty("webdriver.chrome.driver", DRIVER_PATH + "chromedriver.exe");
 				Configuration.browser = "chrome"; //System.setProperty("selenide.browser", "chrome"); //-Dbrowser=chrome
-				configureChrome();
+//				customConfigureChrome();
 				break;
 			case FIREFOX:
 				FirefoxProfile firefoxProfile = new FirefoxProfile();
@@ -62,22 +62,13 @@ public class SelenideUtils {
 		}
 	}
 
-	private static void configureChrome() {
-//		Map<String, Object> contentSettings = new HashMap<>();
-//		contentSettings.put("images", 2);
-//		Map<String, Object> preferences = new HashMap<>();
-//		preferences.put("profile.default_content_settings", contentSettings);
-
+	private static void customConfigureChrome() {
 		ChromeOptions options = new ChromeOptions();
 		options.addArguments("test-type");
-		JsonObject jsonObject = new JsonObject();
-		jsonObject.addProperty("profile.default_content_settings", 2);
-		options.setExperimentalOption("prefs", jsonObject);
+		options.addExtensions(new File("D:\\dev\\projects\\Java\\autobots\\common\\src\\resources\\Block-image_v1.1.crx"));
 
 		DesiredCapabilities caps = DesiredCapabilities.chrome();
-//		caps.setCapability("chrome.prefs", preferences);
 		caps.setCapability(ChromeOptions.CAPABILITY, options);
-
 		WebDriverRunner.setWebDriver(new ChromeDriver(caps));
 	}
 
