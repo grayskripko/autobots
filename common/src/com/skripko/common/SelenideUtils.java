@@ -1,14 +1,17 @@
 package com.skripko.common;
 
 import com.codeborne.selenide.Configuration;
+import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxProfile;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.phantomjs.PhantomJSDriver;
@@ -19,11 +22,18 @@ import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
+import static com.codeborne.selenide.Selenide.switchTo;
+import static com.codeborne.selenide.WebDriverRunner.getWebDriver;
 import static org.openqa.selenium.remote.CapabilityType.*;
 
 public class SelenideUtils {
+	private static long startTime = System.currentTimeMillis();
 	public static final long TIMEOUT = 10000;
 	public static final int AJAX_WAIT = 3;
 	public static final String DRIVER_PATH = System.getProperty("user.dir") + "\\common\\src\\resources\\";
@@ -35,7 +45,7 @@ public class SelenideUtils {
 	public static void configureBrowser(BrowserType browserType) {
 		Configuration.holdBrowserOpen = true;
 		Configuration.startMaximized = false;
-		Configuration.holdBrowserOpen = false;
+		Configuration.holdBrowserOpen = true;
 		Configuration.screenshots = false;
 		Configuration.timeout = TIMEOUT;
 
@@ -56,7 +66,7 @@ public class SelenideUtils {
 			case PHANTOMJS:
 				System.setProperty("phantomjs.binary.path", DRIVER_PATH + "phantomjs.exe");
 				System.setProperty("browser", "phantomjs"); //-Dbrowser=chrome
-				configurePhantom();
+				customConfigurePhantom();
 				break;
 			case HTMLUNIT:
 		}
@@ -72,7 +82,7 @@ public class SelenideUtils {
 		WebDriverRunner.setWebDriver(new ChromeDriver(caps));
 	}
 
-	public static void configurePhantom(Proxy... proxies) {
+	public static void customConfigurePhantom(Proxy... proxies) {
 		System.setProperty("phantomjs.binary.path", DRIVER_PATH + "phantomjs.exe");
 		System.setProperty("browser", "phantomjs"); //-Dbrowser=chrome
 
@@ -95,6 +105,19 @@ public class SelenideUtils {
 			dcaps.setCapability("proxy", proxies[0]);
 		}
 		WebDriverRunner.setWebDriver(new PhantomJSDriver(dcaps));
+	}
+
+	public static List<String> openNewTabAndMap(SelenideElement mainEl, Function<String, String>... functions) {
+		if (functions == null || functions.length == 0) {
+			throw new IllegalArgumentException();
+		}
+		new Actions(getWebDriver()).keyDown(Keys.CONTROL).click(mainEl).keyUp(Keys.CONTROL).perform();
+		WebDriver secondDriver = switchTo().window(1);
+		List<String> result = Arrays.asList(functions).stream().map(
+				function -> function.apply(null)).collect(Collectors.toList());
+		secondDriver.close();
+		switchTo().window(0);
+		return result;
 	}
 
 	protected void waitForPageLoad(int timeout) {
@@ -132,6 +155,12 @@ public class SelenideUtils {
 			e.printStackTrace();
 		}
 	}
+
+	public static void debug(Object str) {
+		System.out.println(String.format("[%ssec] %s", ((System.currentTimeMillis() - startTime) / 1000), String.valueOf(str)));
+	}
+
+
 
 	/*
 		WebDriverRunner.getWebDriver();

@@ -7,7 +7,7 @@ import com.codeborne.selenide.WebDriverRunner;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.Proxy.ProxyType;
 
-import java.util.ArrayList;
+import java.io.File;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -19,23 +19,52 @@ import java.util.stream.Collectors;
 import static com.codeborne.selenide.Condition.*;
 import static com.codeborne.selenide.Selenide.*;
 import static com.codeborne.selenide.WebDriverRunner.closeWebDriver;
+import static com.skripko.common.ExcelIO.readList;
+import static com.skripko.common.ExcelIO.writeList;
 import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
+import static com.skripko.common.SelenideUtils.debug;
 
 
 public class ProxyUtils {
-	private static long startTime = System.currentTimeMillis();
 
 	public static void main(String[] args) throws Exception {
-		int size = (int) 1e7;
-		List<Double> list = new ArrayList<>(size);
-		for (int i = 0; i < size; i++) {
-			list.add(Math.random() * size);
-		}
-//		list = list.stream().parallel().unordered().map(i -> Math.pow(i, 10)).collect(Collectors.toList());
-//		debug(" ");
-//		if(true)return;
-
 		SelenideUtils.configureBrowser(CHROME);
+		List<String> proxyListRows = getProxyInfoList();
+
+		proxyListRows.stream().parallel().forEach(proxyInfo -> {
+			ExecutorService service = Executors.newSingleThreadExecutor();
+			try {
+				final Future<Boolean> oneTaskResult = service.submit(() -> { //transaction
+					applyProxy(proxyInfo);
+					debug(proxyInfo);
+					open("http://2ip.ru");
+					ElementsCollection proxyDesc = $("#content table").waitUntil(exist, 30 * 1000).$$("tr");
+					if (proxyDesc.isEmpty()) {
+						Screenshots.takeScreenShot(new Date().toString());
+					}
+					debug(proxyDesc.filter(matchText("Имя вашего компьютера:")).get(0).getText());
+					return true;
+				});
+				oneTaskResult.get(60, TimeUnit.SECONDS);
+			} catch (Throwable th) {
+				th.getMessage();
+				closeWebDriver();
+			} finally {
+				service.shutdown();
+			}
+		});
+	}
+
+	public static List<String> getProxyInfoList() {
+		String cacheFileName = "proxyListCache.txt";
+//		if (fromCache.length > 0 && fromCache[0] && new File(cacheFileName).exists()) {
+		if ((System.currentTimeMillis() - new File(cacheFileName).lastModified()) / (1000 * 60 * 60) > 0) {
+			List<String> cachedProxies = readList(cacheFileName);
+			if (cachedProxies != null) {
+				return cachedProxies;
+			}
+		}
+
 		open("http://proxylist.hidemyass.com/");
 		debug("Hidemyass has been opened");
 		ElementsCollection legends = $$("#proxy-search-form legend");
@@ -59,36 +88,13 @@ public class ProxyUtils {
 		List<String> proxyListRows = $$(tableSelector).stream()//.parallel().unordered()
 				.map(row -> row.$$("td").get(1).getText()
 						+ ':' + row.$$("td").get(2).getText()).collect(Collectors.toList());
+
 		debug("Collected proxies count: " + proxyListRows.size());
 		debug("Last proxy duration: " + lastProxyDuration);
 		closeWebDriver();
+		writeList(cacheFileName, proxyListRows);
 
-		proxyListRows.stream().parallel().forEach(proxyInfo -> {
-			ExecutorService service = Executors.newSingleThreadExecutor();
-			try {
-				final Future<Boolean> oneTaskResult = service.submit(() -> {
-					applyProxy(proxyInfo);
-					debug(proxyInfo);
-					open("http://2ip.ru");
-					ElementsCollection proxyDesc = $("#content table").waitUntil(exist, 30 * 1000).$$("tr");
-					if (proxyDesc.isEmpty()) {
-						Screenshots.takeScreenShot(new Date().toString());
-					}
-					debug(proxyDesc.filter(matchText("Имя вашего компьютера:")).get(0).getText());
-					return true;
-				});
-				oneTaskResult.get(60, TimeUnit.SECONDS);
-			} catch (Throwable th) {
-				th.getMessage();
-				closeWebDriver();
-			} finally {
-				service.shutdown();
-			}
-		});
-	}
-
-	private static void debug(Object str) {
-		System.out.println(String.format("[%ssec] %s", ((System.currentTimeMillis() - startTime) / 1000), String.valueOf(str)));
+		return proxyListRows;
 	}
 
 	private static void applyProxy(String proxyInfo) {
@@ -96,7 +102,7 @@ public class ProxyUtils {
 		Proxy proxy = new Proxy().setHttpProxy(proxyInfo).setFtpProxy(proxyInfo).setSslProxy(proxyInfo);
 		proxy.setProxyType(ProxyType.MANUAL);
 		if (WebDriverRunner.isPhantomjs()) {
-			SelenideUtils.configurePhantom(proxy);
+			SelenideUtils.customConfigurePhantom(proxy);
 		}
 		WebDriverRunner.setProxy(proxy);
 	}

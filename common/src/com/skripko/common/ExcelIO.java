@@ -6,13 +6,11 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Scanner;
 
 public class ExcelIO {
 	private static final String defaultFileLocation = System.getProperty("user.home") + "/Desktop/";
@@ -157,7 +155,7 @@ public class ExcelIO {
 					break;
 				case Cell.CELL_TYPE_NUMERIC:
 					double valNum = cell.getNumericCellValue();
-					if (valNum != 0) {
+					if (Math.round(Math.abs(valNum)) != 0) {
 						result.add(valNum);
 					}
 					break;
@@ -211,5 +209,26 @@ public class ExcelIO {
 			result.append(String.valueOf(obj)).append(" ");
 		}
 		System.out.println(result.toString());*/
+	}
+
+	public static List<String> readList(String fileName) {
+		List<String> list = new ArrayList<>();
+		try (Scanner sc = new Scanner(new File(fileName))) {
+			while (sc.hasNext()) {
+				list.add(sc.next());
+			}
+			sc.close();
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+		return list.isEmpty() ? null : list;
+	}
+
+	public static void writeList(String fileName, List<String> list) {
+		try (PrintWriter writer = new PrintWriter(fileName, "UTF-8")) {
+			list.stream().forEach(writer::println);
+		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }
