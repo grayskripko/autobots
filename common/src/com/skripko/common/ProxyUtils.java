@@ -55,10 +55,12 @@ public class ProxyUtils {
 		});
 	}
 
-	public static List<String> getProxyInfoList() {
+	public static List<String> getProxyInfoList(boolean... forceUpdate) {
 		String cacheFileName = "proxyListCache.txt";
 //		if (fromCache.length > 0 && fromCache[0] && new File(cacheFileName).exists()) {
-		if ((System.currentTimeMillis() - new File(cacheFileName).lastModified()) / (1000 * 60 * 60) > 0) {
+		if (new File(cacheFileName).exists()
+				&& (System.currentTimeMillis() - new File(cacheFileName).lastModified()) / (1000 * 60 * 60) < 1
+				&& (forceUpdate == null || !forceUpdate[0])) {
 			List<String> cachedProxies = readList(cacheFileName);
 			if (cachedProxies != null) {
 				return cachedProxies;
@@ -70,7 +72,7 @@ public class ProxyUtils {
 		ElementsCollection legends = $$("#proxy-search-form legend");
 
 		ElementsCollection anonymityCheckboxes = legends.filter(hasText("anonymity")).get(0).parent().$$("div.row");
-		anonymityCheckboxes.stream().filter(el -> el.has(text("none"))).map(el -> el.$("label")).forEach(SelenideElement::click);
+		anonymityCheckboxes.stream().filter(el -> el.has(or("anon", text("none"), text("low")))).map(el -> el.$("label")).forEach(SelenideElement::click);
 		ElementsCollection speedCheckboxes = legends.filter(hasText("speed")).get(0).parent().$$("div.row");
 		speedCheckboxes.stream().filter(el -> el.has(or("speed", text("slow"), text("medium")))).map(el -> el.$("label")).forEach(SelenideElement::click);
 		ElementsCollection contimeCheckboxes = legends.filter(hasText("connection time")).get(0).parent().$$("div.row");
@@ -97,13 +99,15 @@ public class ProxyUtils {
 		return proxyListRows;
 	}
 
-	private static void applyProxy(String proxyInfo) {
+	public static void applyProxy(String proxyInfo) {
 		closeWebDriver();
+		debug("Previous browser has been closed");
 		Proxy proxy = new Proxy().setHttpProxy(proxyInfo).setFtpProxy(proxyInfo).setSslProxy(proxyInfo);
 		proxy.setProxyType(ProxyType.MANUAL);
 		if (WebDriverRunner.isPhantomjs()) {
 			SelenideUtils.customConfigurePhantom(proxy);
 		}
 		WebDriverRunner.setProxy(proxy);
+		debug("Proxy applied: " + proxyInfo);
 	}
 }

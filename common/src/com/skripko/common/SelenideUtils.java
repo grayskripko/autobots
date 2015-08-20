@@ -28,6 +28,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import static com.codeborne.selenide.Selenide.open;
 import static com.codeborne.selenide.Selenide.switchTo;
 import static com.codeborne.selenide.WebDriverRunner.getWebDriver;
 import static org.openqa.selenium.remote.CapabilityType.*;
@@ -41,12 +42,23 @@ public class SelenideUtils {
 	public enum BrowserType {
 		CHROME, FIREFOX, PHANTOMJS, HTMLUNIT
 	}
+	public enum BrowserCapability {
+		holdBrowserOpen, startMaximized, screenshots
+	}
 
-	public static void configureBrowser(BrowserType browserType) {
-		Configuration.holdBrowserOpen = true;
+	public static void configureBrowser(BrowserType browserType, BrowserCapability... capabilities) {
+		Configuration.holdBrowserOpen = false;
 		Configuration.startMaximized = false;
-		Configuration.holdBrowserOpen = true;
 		Configuration.screenshots = false;
+		if (capabilities != null) {
+			Arrays.asList(capabilities).stream().forEach(cap -> {
+				try {
+					Configuration.class.getField(cap.toString()).setBoolean(null, true);
+				} catch (IllegalAccessException | NoSuchFieldException e) {
+					throw new RuntimeException(e);
+				}
+			});
+		}
 		Configuration.timeout = TIMEOUT;
 
 		switch (browserType) {
@@ -107,6 +119,7 @@ public class SelenideUtils {
 		WebDriverRunner.setWebDriver(new PhantomJSDriver(dcaps));
 	}
 
+	@SafeVarargs
 	public static List<String> openNewTabAndMap(SelenideElement mainEl, Function<String, String>... functions) {
 		if (functions == null || functions.length == 0) {
 			throw new IllegalArgumentException();
@@ -115,6 +128,7 @@ public class SelenideUtils {
 		WebDriver secondDriver = switchTo().window(1);
 		List<String> result = Arrays.asList(functions).stream().map(
 				function -> function.apply(null)).collect(Collectors.toList());
+		open("http://2ip.ru/privacy/");
 		secondDriver.close();
 		switchTo().window(0);
 		return result;

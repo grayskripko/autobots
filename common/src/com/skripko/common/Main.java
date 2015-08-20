@@ -8,7 +8,9 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.codeborne.selenide.Selenide.*;
+import static com.skripko.common.ProxyUtils.applyProxy;
 import static com.skripko.common.ProxyUtils.getProxyInfoList;
+import static com.skripko.common.SelenideUtils.BrowserCapability.holdBrowserOpen;
 import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
 import static com.skripko.common.SelenideUtils.openNewTabAndMap;
 
@@ -18,8 +20,9 @@ public class Main {
 	private static long startTime = System.currentTimeMillis();
 
 	public static void main(String[] args) throws Exception {
-		SelenideUtils.configureBrowser(CHROME);
-		List<String> proxyListRows = getProxyInfoList();
+		SelenideUtils.configureBrowser(CHROME, holdBrowserOpen);
+		List<String> proxyListRows = getProxyInfoList(true);
+		applyProxy(proxyListRows.get(0));
 		open(START_URL);
 
 		SelenideElement selectEl = $("font > select");
