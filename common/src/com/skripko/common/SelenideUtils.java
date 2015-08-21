@@ -28,8 +28,8 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-import static com.codeborne.selenide.Selenide.open;
 import static com.codeborne.selenide.Selenide.switchTo;
+import static com.codeborne.selenide.WebDriverRunner.closeWebDriver;
 import static com.codeborne.selenide.WebDriverRunner.getWebDriver;
 import static org.openqa.selenium.remote.CapabilityType.*;
 
@@ -82,6 +82,10 @@ public class SelenideUtils {
 				break;
 			case HTMLUNIT:
 		}
+		new Thread(() -> {
+			debug("Outer ip: " + ProxyUtils.getCurrentIp());
+			closeWebDriver();
+		}).start();
 	}
 
 	private static void customConfigureChrome() {
@@ -125,10 +129,16 @@ public class SelenideUtils {
 			throw new IllegalArgumentException();
 		}
 		new Actions(getWebDriver()).keyDown(Keys.CONTROL).click(mainEl).keyUp(Keys.CONTROL).perform();
-		WebDriver secondDriver = switchTo().window(1);
+		WebDriver secondDriver = null;
+		try {
+			secondDriver = switchTo().window(1);
+		} catch (IndexOutOfBoundsException e) {
+			humanWait(4000);
+			secondDriver = switchTo().window(1);
+		}
 		List<String> result = Arrays.asList(functions).stream().map(
 				function -> function.apply(null)).collect(Collectors.toList());
-		open("http://2ip.ru/privacy/");
+//		$("#content").screenshot();
 		secondDriver.close();
 		switchTo().window(0);
 		return result;

@@ -14,18 +14,25 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.codeborne.selenide.Condition.*;
 import static com.codeborne.selenide.Selenide.*;
 import static com.codeborne.selenide.WebDriverRunner.closeWebDriver;
-import static com.skripko.common.ExcelIO.readList;
-import static com.skripko.common.ExcelIO.writeList;
+import static com.skripko.common.ExcelIO.readListFromTxt;
+import static com.skripko.common.ExcelIO.writeListToTxt;
 import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
 import static com.skripko.common.SelenideUtils.debug;
 
+//todo check first 30 proxies by 3 threads, compare with original time, and sort them before write. Use whatismyip service for checking visibiltity of real ip.
 
 public class ProxyUtils {
+	public static String realIp;
+	public enum ForceUpdate {
+		TRUE
+	}
 
 	public static void main(String[] args) throws Exception {
 		SelenideUtils.configureBrowser(CHROME);
@@ -55,13 +62,13 @@ public class ProxyUtils {
 		});
 	}
 
-	public static List<String> getProxyInfoList(boolean... forceUpdate) {
+	public static List<String> getProxyInfoList(ForceUpdate... forceUpdate) {
 		String cacheFileName = "proxyListCache.txt";
 //		if (fromCache.length > 0 && fromCache[0] && new File(cacheFileName).exists()) {
 		if (new File(cacheFileName).exists()
 				&& (System.currentTimeMillis() - new File(cacheFileName).lastModified()) / (1000 * 60 * 60) < 1
-				&& (forceUpdate == null || !forceUpdate[0])) {
-			List<String> cachedProxies = readList(cacheFileName);
+				&& forceUpdate.length == 0) {
+			List<String> cachedProxies = readListFromTxt(cacheFileName);
 			if (cachedProxies != null) {
 				return cachedProxies;
 			}
@@ -94,7 +101,7 @@ public class ProxyUtils {
 		debug("Collected proxies count: " + proxyListRows.size());
 		debug("Last proxy duration: " + lastProxyDuration);
 		closeWebDriver();
-		writeList(cacheFileName, proxyListRows);
+		writeListToTxt(cacheFileName, proxyListRows);
 
 		return proxyListRows;
 	}
@@ -109,5 +116,37 @@ public class ProxyUtils {
 		}
 		WebDriverRunner.setProxy(proxy);
 		debug("Proxy applied: " + proxyInfo);
+	}
+
+	public static String getCurrentIp() {
+		open("http://checkip.amazonaws.com/");
+		String currentIp = $("pre").getText();
+		realIp = realIp == null ? currentIp : realIp;
+		return currentIp;
+	}
+
+	public static boolean isProxyWorks$Refresh() {
+		boolean amazonOpinion = realIp != null && realIp.equals(getCurrentIp());
+		open("http://whatismyipaddress.com/proxy-check");
+		boolean whatismyipadressOpinion = realIp.equals($("#section_left_3rd > table tr:nth-child(1) > td:nth-child(2)").getText());
+		if (amazonOpinion != whatismyipadressOpinion) {
+			debug("realIp: " + realIp);
+			debug("amazonOpinion: " + amazonOpinion);
+			debug("whatismyipadressOpinion: " + whatismyipadressOpinion);
+			return false;
+		}
+		return amazonOpinion;
+	}
+
+	public static String getCurrentIpFrom2ipRu() {
+		open("http://2ip.ru/privacy/");
+		String messageAboutIp = $("#content > p").getText();
+		Matcher matcher = Pattern.compile("([\\d\\.]+)").matcher(messageAboutIp);
+		if (!matcher.find()) {
+			return null;
+		}
+		String currentIp = matcher.group(0);
+		realIp = realIp == null ? currentIp : realIp;
+		return currentIp;
 	}
 }

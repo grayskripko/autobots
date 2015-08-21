@@ -7,45 +7,49 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Scanner;
+import java.lang.reflect.Field;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ExcelIO {
-	private static final String defaultFileLocation = System.getProperty("user.home") + "/Desktop/";
+	private static final String DEFAULT_FILE_LOCATION = System.getProperty("user.home") + "/Desktop/";
 	private String fullPath;
 	private FileOutputStream outStream;
 	private FileInputStream inStream;
-	private boolean hasHeader;
 	private XSSFWorkbook book;
 	private XSSFSheet sheet;
 	private int rowIndex;
+	private boolean hasHeader;
 	private boolean isInStreamExpired;
 
-	public static int READ_MODE = 0;
-	public static int WRITE_MODE = 1;
-
-
-	public ExcelIO(String fileName, int mode, boolean... hasHeader) throws IOException {
-		this(defaultFileLocation, fileName, mode, hasHeader);
+	public enum Mode {
+		READ, WRITE
 	}
 
-	public ExcelIO(String filePath, String fileName, int mode, boolean... hasHeader) throws IOException {
-		this.fullPath = filePath + (fileName.contains(".") ? fileName : fileName + ".xlsx");
-		if (mode == 0) {
-			inStream = new FileInputStream(fullPath);
-			book = new XSSFWorkbook(inStream);
-			if (hasHeader != null && hasHeader.length > 0) {
-				this.hasHeader = hasHeader[0];
+
+	public ExcelIO(String fileName, Mode mode, boolean... hasHeader) {
+		this(DEFAULT_FILE_LOCATION, fileName, mode, hasHeader);
+	}
+
+	public ExcelIO(String filePath, String fileName, Mode mode, boolean... hasHeader) {
+		fullPath = filePath + (fileName.contains(".") ? fileName : fileName + ".xlsx");
+		try {
+			if (mode == Mode.READ) {
+				inStream = new FileInputStream(fullPath);
+				book = new XSSFWorkbook(inStream);
+				if (hasHeader != null && hasHeader.length > 0) {
+					this.hasHeader = hasHeader[0];
+				}
+			} else {
+				outStream = new FileOutputStream(new File(fullPath));
+				book = new XSSFWorkbook();
 			}
-		} else {
-			outStream = new FileOutputStream(new File(fullPath));
-			book = new XSSFWorkbook();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
-	public void printRow(Object... msg) throws IllegalAccessException {
+	public void printRow(Object... msg) {
 		if (sheet == null) {
 			createSheet("Unnamed");
 		}
@@ -55,20 +59,20 @@ public class ExcelIO {
 		for (Object obj : msg) {
 			String s = obj.toString();
 			boolean isNumeric = s.matches("-?\\d+");
-			if (!isNumeric) {
-				row.createCell(colIndex++).setCellValue(s);
-			} else {
+			if (isNumeric) {
 				row.createCell(colIndex++).setCellValue(Double.parseDouble(s));
+			} else {
+				row.createCell(colIndex++).setCellValue(s);
 			}
 		}
 	}
 
-	public void printFirstRow(Object... msg) throws IllegalAccessException {
+	public void printFirstRow(Object... msg) {
 		rowIndex = 0;
 		printRow(msg);
 	}
 
-	public void createSheet(String sheetName) throws IllegalAccessException {
+	public void createSheet(String sheetName) {
 		sheet = book.createSheet(sheetName);
 		rowIndex = 1;
 	}
@@ -86,35 +90,22 @@ public class ExcelIO {
 		book.removeSheetAt(book.getSheetIndex(sheet));
 	}
 
-	public void close() throws IllegalAccessException, IOException {
-		if (outStream != null) {
-			book.setSheetOrder(sheet.getSheetName(), 0);
-			book.write(outStream);
-			outStream.close();
-		} else {
-			inStream.close();
+	public void close() {
+		try {
+			if (outStream != null) {
+				book.setSheetOrder(sheet.getSheetName(), 0);
+				book.write(outStream);
+				outStream.close();
+			} else {
+				inStream.close();
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
 	public List readColumn(int sheetIndex, String columnName) {
-		if (sheetIndex < 0 || columnName == null || columnName.isEmpty()) {
-			throw new IllegalArgumentException();
-		}
-		if (!hasHeader) {
-			throw new IllegalStateException("Table must have header");
-		}
-		checkInStream();
-		sheet = book.getSheetAt(sheetIndex);
-		Iterator<Row> rowIterator = sheet.rowIterator();
-		if (!rowIterator.hasNext()) {
-			throw new RuntimeException("Couldn't find rows");
-		}
-		Row row = sheet.rowIterator().next();
-		Iterator<Cell> cellIterator = row.cellIterator();
-		if (!cellIterator.hasNext()) {
-			throw new RuntimeException("Couldn't find cells");
-		}
-
+		Iterator<Cell> cellIterator = getHeaderCellIterator(sheetIndex);
 		int i = 0;
 		while (cellIterator.hasNext()) {
 			Cell cell = cellIterator.next();
@@ -126,10 +117,21 @@ public class ExcelIO {
 		throw new IllegalArgumentException("No such column");
 	}
 
+	private Iterator<Cell> getHeaderCellIterator(int sheetIndex) {
+		if (!hasHeader) {
+			throw new IllegalStateException("Table must have header");
+		}
+		checkInStream();
+		sheet = book.getSheetAt(sheetIndex);
+		Row row = sheet.rowIterator().next();
+		return row.cellIterator();
+	}
+
 	/**remember: close inStream!*/
 	public List readColumn(int sheetIndex, int columnIndex) {
-		checkInStream();
 		List result = new ArrayList<>();
+
+		checkInStream();
 		sheet = book.getSheetAt(sheetIndex);
 
 		Iterator<Row> rowIterator = sheet.rowIterator();
@@ -166,7 +168,7 @@ public class ExcelIO {
 			boolean isAllNumbersLong = true;
 			for (Object obj : result) {
 				double val = (Double) obj;
-				if ((val != Math.floor(val)) || Double.isInfinite(val)) {
+				if (val != Math.floor(val) || Double.isInfinite(val)) {
 					isAllNumbersLong = false;
 					break;
 				}
@@ -196,8 +198,68 @@ public class ExcelIO {
 		}
 	}
 
-	public static void main(String[] args) throws IOException, IllegalAccessException {
-		ExcelIO excelIO = new ExcelIO("1.xlsx", ExcelIO.WRITE_MODE);
+	public static List<String> readListFromTxt(String fileName) {
+		List<String> list = new ArrayList<>();
+		try (Scanner sc = new Scanner(new File(fileName))) {
+			while (sc.hasNext()) {
+				list.add(sc.next());
+			}
+			sc.close();
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+		return list.isEmpty() ? null : list;
+	}
+
+	public static void writeListToTxt(String fileName, List list) {
+		try (PrintWriter writer = new PrintWriter(fileName, "UTF-8")) {
+			list.stream().forEach(writer::println);
+		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public List<RowObject> readListFromXlsx(int... sheetIndexArg) {
+		int sheetIndex = sheetIndexArg.length == 0 ? 1 : sheetIndexArg[0];
+		Iterator<Cell> cellIterator = getHeaderCellIterator(sheetIndex);
+
+		List<String> header = new ArrayList<>();
+		while (cellIterator.hasNext()) {
+			Cell cell = cellIterator.next();
+			header.add(cell.getStringCellValue());
+		}
+		RowObject.sculptRowObjectShapeByHeader(header);
+
+		List<RowObject> result = new LinkedList<>();
+		for(int i = 1; i < header.size(); i++) {
+			cellIterator = sheet.getRow(i).cellIterator();
+			RowObject rowObject = new RowObject();
+			while (cellIterator.hasNext()) {
+				Cell cell = cellIterator.next();
+				rowObject.setNextField(cell.getStringCellValue());
+			}
+			result.add(rowObject);
+		}
+		return result.isEmpty() ? null : result;
+	}
+
+	public void writeListToXlsx(List objects) {
+		Class aClass = objects.get(0).getClass();
+		List<Field> fields = Arrays.asList(aClass.getDeclaredFields());
+
+		printFirstRow(fields.stream().map(Field::getName).collect(Collectors.toList())); //todo just remember about list vararg
+		objects.stream().forEach(object -> printRow(fields.stream().map(field -> {
+			try {
+				return String.valueOf(field.get(object));
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException(e);
+			}
+		}).collect(Collectors.toList())));
+		close();
+	}
+
+	public static void main(String[] args) {
+		ExcelIO excelIO = new ExcelIO("1.xlsx", Mode.WRITE);
 		excelIO.createSheet("testThis");
 		excelIO.printFirstRow("firstTh", "secondTh");
 		excelIO.printRow("firstTd", "secondTd");
@@ -211,24 +273,4 @@ public class ExcelIO {
 		System.out.println(result.toString());*/
 	}
 
-	public static List<String> readList(String fileName) {
-		List<String> list = new ArrayList<>();
-		try (Scanner sc = new Scanner(new File(fileName))) {
-			while (sc.hasNext()) {
-				list.add(sc.next());
-			}
-			sc.close();
-		} catch (FileNotFoundException e) {
-			throw new RuntimeException(e);
-		}
-		return list.isEmpty() ? null : list;
-	}
-
-	public static void writeList(String fileName, List<String> list) {
-		try (PrintWriter writer = new PrintWriter(fileName, "UTF-8")) {
-			list.stream().forEach(writer::println);
-		} catch (FileNotFoundException | UnsupportedEncodingException e) {
-			throw new RuntimeException(e);
-		}
-	}
 }
