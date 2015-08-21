@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.codeborne.selenide.Selenide.open;
+import static com.skripko.common.ExcelIO.Mode.WRITE;
 import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
 
 
@@ -43,12 +44,12 @@ public class MainFreelanceComp {
 			}
 		}
 
-		ExcelIO excelIO = new ExcelIO(OUTPUT_XLSX, ExcelIO.WRITE_MODE);
+		ExcelIO excelIO = new ExcelIO(OUTPUT_XLSX, WRITE);
 		Job instance = jobs.iterator().next();
 		excelIO.createSheet(instance.getSite());
 		List<String> columnNames = Arrays.asList(instance.getClass().getDeclaredFields()).stream()
 				.map(Field::getName).collect(Collectors.toList());
-		excelIO.printFirstRow(columnNames.toArray(new String[columnNames.size()]));
+		excelIO.printRow(columnNames.toArray(new String[columnNames.size()]));
 		for (Job job : jobs) {
 			excelIO.printRow(job.getSite(), job.getQueryName(), job.getUrl(), job.getProposalCount(), job.getLifeDuration());
 		}

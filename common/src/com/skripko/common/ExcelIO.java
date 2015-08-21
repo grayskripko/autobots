@@ -53,7 +53,6 @@ public class ExcelIO {
 		if (sheet == null) {
 			createSheet("Unnamed");
 		}
-
 		XSSFRow row = sheet.createRow(rowIndex++);
 		int colIndex = 0;
 		for (Object obj : msg) {
@@ -67,14 +66,9 @@ public class ExcelIO {
 		}
 	}
 
-	public void printFirstRow(Object... msg) {
-		rowIndex = 0;
-		printRow(msg);
-	}
-
 	public void createSheet(String sheetName) {
 		sheet = book.createSheet(sheetName);
-		rowIndex = 1;
+		rowIndex = 0;
 	}
 
 	public String[] getSheetNames() {
@@ -213,13 +207,26 @@ public class ExcelIO {
 
 	public static void writeListToTxt(String fileName, List list) {
 		try (PrintWriter writer = new PrintWriter(fileName, "UTF-8")) {
-			list.stream().forEach(writer::println);
-		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			Object instance = list.get(0);
+			if (instance instanceof RowObject) {
+				list.stream().map(String::valueOf).forEachOrdered(writer::println);
+			} else {
+				List<Field> fields = Arrays.asList(instance.getClass().getDeclaredFields());
+				list.stream().forEachOrdered(obj ->
+						writer.println(fields.stream().map(field -> {
+							try {
+								return String.valueOf(field.get(obj));
+							} catch (IllegalAccessException e) {
+								throw new RuntimeException(e);
+							}
+						}).collect(Collectors.joining("|"))));
+			}
+		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
 
-	public List<RowObject> readListFromXlsx(int... sheetIndexArg) {
+	public List<RowObject> readList(int... sheetIndexArg) {
 		int sheetIndex = sheetIndexArg.length == 0 ? 1 : sheetIndexArg[0];
 		Iterator<Cell> cellIterator = getHeaderCellIterator(sheetIndex);
 
@@ -228,7 +235,7 @@ public class ExcelIO {
 			Cell cell = cellIterator.next();
 			header.add(cell.getStringCellValue());
 		}
-		RowObject.sculptRowObjectShapeByHeader(header);
+		RowObject.sculptShapeByHeader(header);
 
 		List<RowObject> result = new LinkedList<>();
 		for(int i = 1; i < header.size(); i++) {
@@ -243,34 +250,52 @@ public class ExcelIO {
 		return result.isEmpty() ? null : result;
 	}
 
-	public void writeListToXlsx(List objects) {
-		Class aClass = objects.get(0).getClass();
-		List<Field> fields = Arrays.asList(aClass.getDeclaredFields());
-
-		printFirstRow(fields.stream().map(Field::getName).collect(Collectors.toList())); //todo just remember about list vararg
-		objects.stream().forEach(object -> printRow(fields.stream().map(field -> {
-			try {
-				return String.valueOf(field.get(object));
-			} catch (IllegalAccessException e) {
-				throw new RuntimeException(e);
-			}
-		}).collect(Collectors.toList())));
+	public void writeList(List objects) {
+		Object instance = objects.get(0);
+		if (instance instanceof RowObject) {
+			List<String> fieldsStr = ((RowObject) instance).getFields();
+			printRow(fieldsStr.<String>toArray());
+			objects.stream().forEachOrdered(object -> printRow(((RowObject) object).getValues().values().<String>toArray()));
+		} else { //it is expected that object is simple class with open non-private fields
+			Class aClass = objects.get(0).getClass();
+			List<Field> fields = Arrays.asList(aClass.getDeclaredFields());
+			printRow(fields.stream().map(Field::getName).collect(Collectors.toList()).<String>toArray());
+			objects.stream().forEachOrdered(object ->
+				printRow(fields.stream().map(field -> {
+					try {
+						return String.valueOf(field.get(object));
+					} catch (IllegalAccessException e) {
+						throw new RuntimeException(e + Arrays.toString(fields.toArray()));
+					}
+				}).collect(Collectors.toList()))
+			);
+		}
 		close();
 	}
 
-	public static void main(String[] args) {
-		ExcelIO excelIO = new ExcelIO("1.xlsx", Mode.WRITE);
-		excelIO.createSheet("testThis");
-		excelIO.printFirstRow("firstTh", "secondTh");
-		excelIO.printRow("firstTd", "secondTd");
-		excelIO.close();
-		/*ExcelIO excelIO = new ExcelIO("freelanceCompare", ExcelIO.READ_MODE, true);
-		StringBuilder result = new StringBuilder();
-		List column = excelIO.readColumn(0, 1);
-		for (Object obj : column) {
-			result.append(String.valueOf(obj)).append(" ");
+	private static class TestClassForMain {
+		String name;
+		String state;
+		TestClassForMain(String name, String state) {
+			this.name = name;
+			this.state = state;
 		}
-		System.out.println(result.toString());*/
+	}
+
+	public static void main(String[] args) {
+		boolean testRowObject = false;
+
+//		ExcelIO excelIO = new ExcelIO("1.xlsx", Mode.WRITE, true);
+		List<Object> objects = new LinkedList<>();
+		if (testRowObject) {
+			RowObject.sculptShapeByHeader(Arrays.asList("schoolName", "state"));
+			objects.add(new RowObject("FirstSchoolName", "FirstState"));
+			objects.add(new RowObject("SecondSchoolName", "SecondState"));
+		} else {
+			objects.add(new TestClassForMain("Aa", "Bb"));
+			objects.add(new TestClassForMain("Cc", "Dd"));
+		}
+		writeListToTxt("1.txt", objects);
 	}
 
 }

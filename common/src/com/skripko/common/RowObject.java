@@ -4,7 +4,7 @@ import java.util.*;
 
 public class RowObject {
 	private static List<String> fields = null; // not Map because of it is impossible to put list elements by order
-	private Map<String, String> values = null;
+	private Map<String, String> values = null; // Map is more safe. I'm afraid that another implementation may produce hard bugs with shift inside key-value pairs
 	private int fieldPointer;
 
 	public RowObject() {
@@ -20,6 +20,10 @@ public class RowObject {
 		fieldPointer = -1;
 	}
 
+	public RowObject(String... wishedValues) {
+		this(Arrays.asList(wishedValues));
+	}
+
 	public void setNextField(String value) {
 		if (fieldPointer == -1) {
 			throw new IllegalStateException();
@@ -30,28 +34,21 @@ public class RowObject {
 		fieldPointer = fieldPointer == fields.size() ? -1 : fieldPointer + 1;
 	}
 
-	public static void sculptRowObjectShapeByHeader(List<String> wishedFields) {
+	public static void sculptShapeByHeader(List<String> wishedFields) {
 		fields = new LinkedList<>();
 		wishedFields.stream().forEachOrdered(fields::add);
 	}
 
-	public static List<String> getFields() {
+	public List<String> getFields() {
 		return fields;
 	}
 
-	/*
-	public static void sculptRowObjectShapeByHeader(List wishedFields) {
-		List<String> wishedFieldsStr = new LinkedList<>();
-		Object instance = wishedFields.get(0);
-		if (instance instanceof Field) {
-			wishedFields.stream().forEachOrdered(field -> {
-				Field detectedField = (Field) field;
-				wishedFieldsStr.add(detectedField.getName());
-			});
-		} else if(instance instanceof String) {
-			wishedFieldsStr = wishedFields;
-		} else {
-			throw new IllegalArgumentException();
-		}
-	}*/
+	public Map<String, String> getValues() {
+		return values;
+	}
+
+	@Override
+	public String toString() {
+		return values.toString();
+	}
 }

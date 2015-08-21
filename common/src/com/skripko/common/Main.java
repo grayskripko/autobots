@@ -76,7 +76,7 @@ public class Main {
 		}
 
 		ExcelIO.writeListToTxt("School.txt", schools);
-		new ExcelIO("School.xlsx", WRITE, true).writeListToXlsx(schools);
+		new ExcelIO("School.xlsx", WRITE, true).writeList(schools);
 		debug("<<");
 	}
 }
