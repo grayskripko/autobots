@@ -267,25 +267,27 @@ public class ExcelIO {
 					} catch (IllegalAccessException e) {
 						throw new RuntimeException(e + Arrays.toString(fields.toArray()));
 					}
-				}).collect(Collectors.toList()))
+				}).collect(Collectors.toList()).<String>toArray()) //don't forget about <String>toArray. Else output is [all list elements in one cell]
 			);
 		}
 		close();
 	}
 
-	private static class TestClassForMain {
-		String name;
-		String state;
-		TestClassForMain(String name, String state) {
-			this.name = name;
-			this.state = state;
-		}
-	}
+
 
 	public static void main(String[] args) {
 		boolean testRowObject = false;
 
-//		ExcelIO excelIO = new ExcelIO("1.xlsx", Mode.WRITE, true);
+		class TestClassForMain {
+			String name;
+			String state;
+			TestClassForMain(String name, String state) {
+				this.name = name;
+				this.state = state;
+			}
+		}
+
+		ExcelIO excelIO = new ExcelIO("1.xlsx", Mode.WRITE, true);
 		List<Object> objects = new LinkedList<>();
 		if (testRowObject) {
 			RowObject.sculptShapeByHeader(Arrays.asList("schoolName", "state"));
@@ -295,7 +297,8 @@ public class ExcelIO {
 			objects.add(new TestClassForMain("Aa", "Bb"));
 			objects.add(new TestClassForMain("Cc", "Dd"));
 		}
-		writeListToTxt("1.txt", objects);
+		excelIO.writeList(objects);
+//		writeListToTxt("1.txt", objects);
 	}
 
 }

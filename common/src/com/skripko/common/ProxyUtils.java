@@ -26,8 +26,6 @@ import static com.skripko.common.ExcelIO.writeListToTxt;
 import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
 import static com.skripko.common.SelenideUtils.debug;
 
-//todo check first 30 proxies by 3 threads, compare with original time, and sort them before write. Use whatismyip service for checking visibiltity of real ip.
-
 public class ProxyUtils {
 	public static String realIp;
 	public enum ForceUpdate {

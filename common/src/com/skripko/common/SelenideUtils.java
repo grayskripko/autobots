@@ -128,19 +128,22 @@ public class SelenideUtils {
 		if (functions == null || functions.length == 0) {
 			throw new IllegalArgumentException();
 		}
+		String mainTabHandle = getWebDriver().getWindowHandle();
+		int openTabsCount = getWebDriver().getWindowHandles().size();
+
 		new Actions(getWebDriver()).keyDown(Keys.CONTROL).click(mainEl).keyUp(Keys.CONTROL).perform();
-		WebDriver secondDriver = null;
+		WebDriver secondDriver;
 		try {
-			secondDriver = switchTo().window(1);
-		} catch (IndexOutOfBoundsException e) {
+			secondDriver = switchTo().window(openTabsCount);
+		} catch (IndexOutOfBoundsException ignored) {
 			humanWait(4000);
-			secondDriver = switchTo().window(1);
+			secondDriver = switchTo().window(openTabsCount);
 		}
 		List<String> result = Arrays.asList(functions).stream().map(
 				function -> function.apply(null)).collect(Collectors.toList());
 //		$("#content").screenshot();
 		secondDriver.close();
-		switchTo().window(0);
+		switchTo().window(mainTabHandle);
 		return result;
 	}
 
@@ -187,12 +190,6 @@ public class SelenideUtils {
 
 
 	/*
-		WebDriverRunner.getWebDriver();
-        $(By.name("email")).sendKeys("johny");
-        $(By.name("email")).shouldHave(Condition.text("Selenide.org"));
-        $$("#ires li.g").shouldHave(size(10));
-        $("#ires").find(By.linkText("selenide.org")).shouldBe(visible);
-        $("#username").shouldHave(cssClass("green-text"));
         setValue(By.name("user.name"), "johny");
         selectRadio("user.gender", "male");
         selectOption(By.name("user.preferredLayout"), "plain");
@@ -201,17 +198,12 @@ public class SelenideUtils {
         takeScreenShot("complex-form.png");
         waitFor("#username");
         waitUntil(By.id("username"), hasText("Hello, Johny!"));
-        waitUntil("#username", hasText("Hello, Johny!"));
         waitUntil("#username", hasAttribute("name", "user.name"));
-        waitUntil("#username", hasClass("green-button"));
-        waitUntil("#username", hasValue("Carlson"));
-        waitUntil("#username", appears);
         waitUntil("#username", disappears);
         $("#customerContainer").shouldNot(exist);
         $("TEXTAREA").shouldHave(value("John"));
         $(byText("Customer profile"));
         $("#customerContainer").should(matchText("profile"));
-        $("li", 5); //element by index
         selectRadio(By.name("sex"), "woman");
         refresh();         url();         title();         source();
         $("#username").waitUntil(hasText("Hello, Johny!"), 8000);
