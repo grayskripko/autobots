@@ -12,7 +12,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class ExcelIO {
-	private static final String DEFAULT_FILE_LOCATION = System.getProperty("user.home") + "/Desktop/";
+	private static final String DEFAULT_FILE_LOCATION = System.getProperty("user.home") + "/Desktop/javaOut/";
 	private String fullPath;
 	private FileOutputStream outStream;
 	private FileInputStream inStream;
@@ -206,12 +206,15 @@ public class ExcelIO {
 	}
 
 	public static void writeListToTxt(String fileName, List list) {
-		try (PrintWriter writer = new PrintWriter(fileName, "UTF-8")) {
+		try (PrintWriter writer = new PrintWriter(DEFAULT_FILE_LOCATION + fileName, "UTF-8")) {
 			Object instance = list.get(0);
-			if (instance instanceof RowObject) {
+			if (instance instanceof RowObject || instance instanceof String) {
 				list.stream().map(String::valueOf).forEachOrdered(writer::println);
+			/*} else if (instance instanceof String) {
+				list.stream().forEachOrdered(obj ->*/
 			} else {
-				List<Field> fields = Arrays.asList(instance.getClass().getDeclaredFields());
+				List<Field> fields = Arrays.asList(instance.getClass().getFields())
+						/*.stream().filter(Field::is).collect(Collectors.toList())*/;
 				list.stream().forEachOrdered(obj ->
 						writer.println(fields.stream().map(field -> {
 							try {
@@ -256,6 +259,8 @@ public class ExcelIO {
 			List<String> fieldsStr = ((RowObject) instance).getFields();
 			printRow(fieldsStr.<String>toArray());
 			objects.stream().forEachOrdered(object -> printRow(((RowObject) object).getValues().values().<String>toArray()));
+		} else if (instance instanceof String) {
+			objects.stream().forEachOrdered(this::printRow);
 		} else { //it is expected that object is simple class with open non-private fields
 			Class aClass = objects.get(0).getClass();
 			List<Field> fields = Arrays.asList(aClass.getDeclaredFields());

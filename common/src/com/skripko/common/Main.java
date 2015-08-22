@@ -2,23 +2,22 @@ package com.skripko.common;
 
 import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.SelenideElement;
+import com.skripko.common.ProxyUtils.ForceUpdate;
 import org.openqa.selenium.By;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.codeborne.selenide.Condition.and;
 import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Selenide.*;
 import static com.skripko.common.ExcelIO.Mode.WRITE;
+import static com.skripko.common.ProxyUtils.getProxyInfoList;
 import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
 import static com.skripko.common.SelenideUtils.*;
 
 //todo check first 30 proxies by 3 threads, compare with original time, and sort them before write. Use whatismyip service for checking visibiltity of real ip.
-//todo intellegent email scraper. Find about, contacts, persons links and buttons.
+//todo intelligent email scraper. Find about, contacts, persons links and buttons.
 //todo choose second speed proxy for checking bun settings
 
 public class Main {
@@ -26,7 +25,10 @@ public class Main {
 
 	public static void main(String[] args) throws Exception {
 		configureBrowser(CHROME);
-//		List<String> proxyListRows = getProxyInfoList(ForceUpdate.TRUE);
+		List<String> proxyListRows = getProxyInfoList(ForceUpdate.TRUE);
+		List<String> fastProxies = get5FastestProxy(proxyListRows);
+		if (true) return;
+
 //		applyProxy(proxyListRows.get(0));
 //		debug("isProxyWorks(): " + isProxyWorks$Refresh());
 		open(START_URL);
@@ -83,5 +85,13 @@ public class Main {
 		ExcelIO.writeListToTxt("School.txt", schools);
 		new ExcelIO("School.xlsx", WRITE, true).writeList(schools);
 		debug("<<");
+	}
+
+	public static List<String> get5FastestProxy(List<String> proxyInfos) {
+		Map<String, String> px = proxyInfos.parallelStream().map(proxyInfo ->
+				proxyInfo.split(":")).collect(Collectors.toMap(
+				arr -> arr[0] + "::" + arr[1], arr -> String.valueOf(Math.random())));
+
+		return null;
 	}
 }
