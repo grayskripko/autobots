@@ -1,4 +1,4 @@
-package com.skripko.common;
+package com.skripko.common.object;
 
 import java.util.*;
 

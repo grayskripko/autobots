@@ -4,15 +4,16 @@ import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.Screenshots;
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
+import com.skripko.common.object.Transaction;
+import com.sun.istack.internal.Nullable;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.Proxy.ProxyType;
 
 import java.io.File;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -28,42 +29,33 @@ import static com.skripko.common.SelenideUtils.print;
 public class ProxyUtils {
 	public static String realIp;
 	public enum Option {
-		TRUE
+		FORCE_UPDATE
 	}
 
 	public static void main(String[] args) throws Exception {
 		SelenideUtils.configureBrowser(CHROME);
 		List<String> proxyListRows = getProxyInfoList();
 
-		proxyListRows.stream().parallel().forEach(proxyInfo -> {
-			ExecutorService service = Executors.newSingleThreadExecutor();
-			try {
-				final Future<Boolean> oneTaskResult = service.submit(() -> { //transaction
-					applyProxy(proxyInfo);
-					print(proxyInfo);
-					open("http://2ip.ru");
-					ElementsCollection proxyDesc = $("#content table").waitUntil(exist, 30 * 1000).$$("tr");
-					if (proxyDesc.isEmpty()) {
-						Screenshots.takeScreenShot(new Date().toString());
-					}
-					print(proxyDesc.filter(matchText("Имя вашего компьютера:")).get(0).getText());
-					return true;
-				});
-				oneTaskResult.get(60, TimeUnit.SECONDS);
-			} catch (Throwable th) {
-				th.getMessage();
-				closeWebDriver();
-			} finally {
-				service.shutdown();
+		proxyListRows.stream().parallel().forEach(proxyInfo -> new Transaction(60).executeWithTimeLimit(() -> {
+			applyProxy$ClosePrevBrowser(proxyInfo);
+			print(proxyInfo);
+			open("http://2ip.ru");
+			ElementsCollection proxyDesc = $("#content table").waitUntil(exist, 30 * 1000).$$("tr");
+			if (proxyDesc.isEmpty()) {
+				Screenshots.takeScreenShot(new Date().toString());
 			}
-		});
+			print(proxyDesc.filter(matchText("Имя вашего компьютера:")).get(0).getText());
+			return true;
+		}));
 	}
 
 	public static List<String> getProxyInfoList(Option... option) {
+		print(">> getProxyInfoList");
 		String cacheFileName = "proxyListCache.txt";
+		int timeForUpdate = 20;
 //		if (fromCache.length > 0 && fromCache[0] && new File(cacheFileName).exists()) {
 		if (new File(cacheFileName).exists()
-				&& (System.currentTimeMillis() - new File(cacheFileName).lastModified()) / (1000 * 60 * 60) < 1
+				&& (System.currentTimeMillis() - new File(cacheFileName).lastModified()) / (1000 * 60) < timeForUpdate
 				&& option.length == 0) {
 			List<String> cachedProxies = readListFromTxt(cacheFileName);
 			if (cachedProxies != null) {
@@ -72,7 +64,6 @@ public class ProxyUtils {
 		}
 
 		open("http://proxylist.hidemyass.com/");
-		print("Hidemyass has been opened");
 		ElementsCollection legends = $$("#proxy-search-form legend");
 
 		ElementsCollection anonymityCheckboxes = legends.filter(hasText("anonymity")).get(0).parent().$$("div.row");
@@ -85,7 +76,6 @@ public class ProxyUtils {
 
 		$("select[name=pp]").selectOption("100 per page");
 		$("#proxy-list-upd-btn").click();
-		print("Hidemyass update button has been clicked");
 
 		String tableSelector = "#listable tbody tr";
 		SelenideUtils.strictWait();
@@ -99,35 +89,53 @@ public class ProxyUtils {
 		print("Last proxy duration: " + lastProxyDuration);
 		closeWebDriver();
 		writeListToTxt(cacheFileName, proxyListRows);
-
+		print("<< getProxyInfoList");
 		return proxyListRows;
 	}
 
 	public static List<String> getFastestProxies(List<String> proxyInfos, int... wishedProxiesCount) {
-		long fakeDurationForBadProxy = 99999;
-		int maxProxyListCheckedLength = 30;
+		print(">> getFastestProxies");
+		final long fakeDurationForBadProxy = 99999;
+		final int maxProxyListCheckedLength = 30;
+		final long timeout = 60;
 
 		List<String> proxyInfosCutted = proxyInfos.size() > maxProxyListCheckedLength ?
 				proxyInfos.subList(0, maxProxyListCheckedLength) : proxyInfos;
-		Map<String, Long> proxyTime = proxyInfosCutted.parallelStream().collect(Collectors.toMap(
+		Map<String, Long> proxyTime = proxyInfosCutted.stream().collect(Collectors.toMap(
 				proxyInfo -> proxyInfo, proxyInfo -> {
-					long start = System.currentTimeMillis();
-					boolean isIpInvisible = isProxyWorks();
-					return isIpInvisible ? System.currentTimeMillis() - start : fakeDurationForBadProxy;
+					Transaction tx = new Transaction(timeout, Transaction.Option.SOFT_ERROR);
+					return (Long) tx.executeWithTimeLimit(() -> {
+						long start = System.currentTimeMillis();
+						applyProxy$ClosePrevBrowser(proxyInfo);
+						boolean isIpInvisible = isProxyWorks$Refresh();
+						return isIpInvisible ? System.currentTimeMillis() - start : fakeDurationForBadProxy;
+					});
 				}));
-		Map<String, Integer> proxyTimeSorted = AlgoUtils.sortByValue(proxyTime);
+
+		applyProxy$ClosePrevBrowser(null);
+		print("cleared ip. IsProxyWorks$Refresh(): " + isProxyWorks$Refresh());
+
+		Map<String, Integer> proxyTimeSorted = AlgoUtils.sortMapByValue(proxyTime);
+		print(proxyTimeSorted); //todo remove
 		List<String> resultSliced = new ArrayList<>(proxyTimeSorted.keySet());
 
-		int defaultResultLimit = 5;
+		int resultLimit = 5;
+		print("<< getFastestProxies");
 		return wishedProxiesCount.length == 0 ?
-				resultSliced.subList(0, defaultResultLimit) : resultSliced.subList(0, wishedProxiesCount[0]);
+				resultSliced.subList(0, resultLimit) : resultSliced.subList(0, wishedProxiesCount[0]);
 	}
 
-	public static void applyProxy(String proxyInfo) {
+	/**
+	 * It can be used for removing proxy
+	 * */
+	public static void applyProxy$ClosePrevBrowser(@Nullable String proxyInfo) {
 		closeWebDriver();
-		print("Previous browser has been closed");
-		Proxy proxy = new Proxy().setHttpProxy(proxyInfo).setFtpProxy(proxyInfo).setSslProxy(proxyInfo);
-		proxy.setProxyType(ProxyType.MANUAL);
+		Proxy proxy = null;
+
+		if (proxyInfo != null) {
+			proxy = new Proxy().setHttpProxy(proxyInfo).setFtpProxy(proxyInfo).setSslProxy(proxyInfo);
+			proxy.setProxyType(ProxyType.MANUAL);
+		}
 		if (WebDriverRunner.isPhantomjs()) {
 			SelenideUtils.customConfigurePhantom(proxy);
 		}
@@ -135,36 +143,46 @@ public class ProxyUtils {
 		print("Proxy applied: " + proxyInfo);
 	}
 
-	public static String getCurrentIp() {
+	public static String getCurrentIpAmazon() { //first time it is called from configureBrowser()
 		open("http://checkip.amazonaws.com/");
 		String currentIp = $("pre").getText();
 		realIp = realIp == null ? currentIp : realIp;
 		return currentIp;
 	}
 
-	public static boolean isProxyWorks() {
-		final List<Boolean> result = new LinkedList<>();
-		Thread threadNewTab = new Thread(() -> {
-			String ipGivenByFastestAmazon = getCurrentIp();
-			boolean amazonOpinion = realIp != null && realIp.equals(ipGivenByFastestAmazon);
-			open("http://whatismyipaddress.com/proxy-check");
-			boolean whatismyipadressOpinion = realIp.equals($("#section_left_3rd > table tr:nth-child(1) > td:nth-child(2)").getText());
-			if (amazonOpinion == whatismyipadressOpinion) {
-				result.add(amazonOpinion);
-			} else {
-				print(String.format("Check ip opinions collision. RealIp: %s, amazonOpinion: %s, whatismyipadressOpinion: %s",
-						realIp, amazonOpinion, whatismyipadressOpinion));
-				result.add(false);
-			}
-		});
+	public static String getCurrentIpWhatismy() {
+		open("http://whatismyipaddress.com/proxy-check");
+		String currentIp = $("#section_left_3rd > table tr:nth-child(1) > td:nth-child(2)").getText();
+		realIp = realIp == null ? currentIp : realIp;
+		return currentIp;
+	}
 
-		threadNewTab.start();
-		try {
-			threadNewTab.join();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+	public static long getConnectionSpeed() {
+		long start = System.currentTimeMillis();
+		getCurrentIpAmazon();
+		getCurrentIpWhatismy();
+		return System.currentTimeMillis() - start;
+	}
+
+	public static boolean isProxyWorks$Refresh() {
+		if (realIp == null) {
+			throw new IllegalStateException();
 		}
-		return result.get(0);
+
+		try {
+			String amazonIp =  getCurrentIpAmazon();
+			boolean amazonOpinion = !realIp.equals(amazonIp);
+			String whatismyIp = getCurrentIpWhatismy();
+			boolean whatismyOpinion = !realIp.equals(whatismyIp);
+
+			if (amazonOpinion != whatismyOpinion) {
+				print(String.format("Check ip opinions collision. AmazonOpinion: %s, whatismyOpinion: %s", amazonOpinion, whatismyOpinion));
+				return false;
+			}
+			return amazonOpinion;
+		} catch (Throwable e) { // it seems it is good standard for exception catching and error message
+			throw new RuntimeException(Thread.currentThread() + " >> " + e);
+		}
 	}
 
 	public static String getCurrentIpFrom2ipRu() {

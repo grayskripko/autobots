@@ -81,10 +81,17 @@ public class SelenideUtils {
 				break;
 			case HTMLUNIT:
 		}
-		new Thread(() -> {
-			print("Outer ip: " + ProxyUtils.getCurrentIp());
+
+		Thread thread = new Thread(() -> {
+			print("Clear ip: " + ProxyUtils.getCurrentIpAmazon());
 			closeWebDriver();
-		}).start();
+		});
+		thread.start();
+		try { //consumes about 5 seconds
+			thread.join();
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 		return true;
 	}
 

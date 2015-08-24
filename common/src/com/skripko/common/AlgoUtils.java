@@ -4,6 +4,9 @@ import java.util.*;
 import java.util.Map.Entry;
 
 public class AlgoUtils {
+
+
+
 	public enum Option {
 		DESC
 	}
@@ -17,7 +20,7 @@ public class AlgoUtils {
 		return arr[arr.length - 1];
 	}
 
-	public static Map sortByValue(Map unsortMap, Option... option) {
+	public static Map sortMapByValue(Map unsortMap, Option... option) {
 		List list = new LinkedList(unsortMap.entrySet());
 		if (option.length != 0 && option[0] == Option.DESC) {
 			Collections.sort(list, (o1, o2) -> ((Comparable) ((Entry) o2).getValue())

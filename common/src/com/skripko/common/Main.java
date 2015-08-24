@@ -15,6 +15,7 @@ import static com.codeborne.selenide.Condition.and;
 import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Selenide.*;
 import static com.skripko.common.ExcelIO.Mode.WRITE;
+import static com.skripko.common.ProxyUtils.getConnectionSpeed;
 import static com.skripko.common.ProxyUtils.getProxyInfoList;
 import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
 import static com.skripko.common.SelenideUtils.*;
@@ -27,15 +28,16 @@ public class Main {
 	public static final String START_URL = "https://nces.ed.gov/surveys/pss/privateschoolsearch/";
 
 	public static void main(String[] args) throws Exception {
-		List<String> proxyListRows = getProxyInfoList(Option.TRUE);
+		List<String> proxyListRows = getProxyInfoList(Option.FORCE_UPDATE);
 		List<String> fastProxies = ProxyUtils.getFastestProxies(proxyListRows);
 		print(fastProxies);
+		print("Clear ip speed: " + getConnectionSpeed());
 		if (true) return;
 
 
 
-//		applyProxy(proxyListRows.get(0));
-//		print("isProxyWorks(): " + isProxyWorks$Refresh());
+//		applyProxy$ClosePrevBrowser(proxyListRows.get(0));
+//		print("isProxyWorks$Refresh(): " + isProxyWorks$Refresh$Refresh());
 		open(START_URL);
 
 		SelenideElement selectEl = $("font > select");

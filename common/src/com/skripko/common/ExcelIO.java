@@ -1,5 +1,6 @@
 package com.skripko.common;
 
+import com.skripko.common.object.RowObject;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFRow;
