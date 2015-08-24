@@ -16,7 +16,6 @@ import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.phantomjs.PhantomJSDriver;
 import org.openqa.selenium.phantomjs.PhantomJSDriverService;
-import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -46,7 +45,7 @@ public class SelenideUtils {
 		holdBrowserOpen, startMaximized, screenshots
 	}
 
-	public static void configureBrowser(BrowserType browserType, BrowserCapability... capabilities) {
+	public static boolean configureBrowser(BrowserType browserType, BrowserCapability... capabilities) {
 		Configuration.holdBrowserOpen = false;
 		Configuration.startMaximized = false;
 		Configuration.screenshots = false;
@@ -83,9 +82,10 @@ public class SelenideUtils {
 			case HTMLUNIT:
 		}
 		new Thread(() -> {
-			debug("Outer ip: " + ProxyUtils.getCurrentIp());
+			print("Outer ip: " + ProxyUtils.getCurrentIp());
 			closeWebDriver();
 		}).start();
+		return true;
 	}
 
 	private static void customConfigureChrome() {
@@ -110,7 +110,7 @@ public class SelenideUtils {
 		logs.enable(LogType.SERVER, Level.WARNING);
 
 		DesiredCapabilities dcaps = DesiredCapabilities.phantomjs();
-		dcaps.setCapability(CapabilityType.LOGGING_PREFS, logs);
+		dcaps.setCapability(LOGGING_PREFS, logs);
 		dcaps.setCapability(PhantomJSDriverService.PHANTOMJS_CLI_ARGS, new String[]{
 				"--webdriver-loglevel=ERROR", "--web-security=false", "--ignore-ssl-errors=true", "--load-images=false"}); //NONE
 		dcaps.setJavascriptEnabled(true);
@@ -148,7 +148,7 @@ public class SelenideUtils {
 	}
 
 	protected void waitForPageLoad(int timeout) {
-		Wait<WebDriver> wait = new WebDriverWait(WebDriverRunner.getWebDriver(), timeout);
+		Wait<WebDriver> wait = new WebDriverWait(getWebDriver(), timeout);
 		wait.until(driver -> {
 			String state = String.valueOf(((JavascriptExecutor) driver).executeScript("return document.readyState"));
 			System.out.printf("current window state=%s\n", state);
@@ -183,8 +183,8 @@ public class SelenideUtils {
 		}
 	}
 
-	public static void debug(Object str) {
-		System.out.println(String.format("[%ssec] %s", ((System.currentTimeMillis() - startTime) / 1000), String.valueOf(str)));
+	public static void print(Object str) {
+		System.out.println(String.format("[%ssec] %s", (System.currentTimeMillis() - startTime) / 1000, String.valueOf(str)));
 	}
 
 
