@@ -1,6 +1,6 @@
 package com.skripko.common;
 
-import com.skripko.common.object.RowObject;
+import com.skripko.object.RowObject;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -280,8 +280,7 @@ public class ExcelIO {
 	}
 
 
-
-	public static void main(String[] args) {
+	public static void test() {
 		boolean testRowObject = false;
 
 		class TestClassForMain {
@@ -307,4 +306,16 @@ public class ExcelIO {
 //		writeListToTxt("1.txt", objects);
 	}
 
+	public static void clearCsv(String csvNameInDownloadDirectory) {
+		final String downloadsPath = "D:/Downloads/";
+		List<String> readedLines = readListFromTxt(downloadsPath + csvNameInDownloadDirectory);
+		String content = readedLines.stream().collect(Collectors.joining());
+
+
+	}
+
+	public static void main(String[] args) {
+//		test()
+		clearCsv("auto.csv");
+	}
 }

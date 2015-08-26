@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import static com.codeborne.selenide.Selenide.switchTo;
 import static com.codeborne.selenide.WebDriverRunner.closeWebDriver;
 import static com.codeborne.selenide.WebDriverRunner.getWebDriver;
+import static com.skripko.common.ProxyUtils.getConnectionSpeed;
 import static org.openqa.selenium.remote.CapabilityType.*;
 
 public class SelenideUtils {
@@ -83,12 +84,13 @@ public class SelenideUtils {
 		}
 
 		Thread thread = new Thread(() -> {
-			print("Clear ip: " + ProxyUtils.getCurrentIpAmazon());
+			print("Current speed: " + getConnectionSpeed(true));
 			closeWebDriver();
 		});
-		thread.start();
-		try { //consumes about 5 seconds
-			thread.join();
+
+		try {
+			thread.start();
+			thread.join();  //consumes about 5 seconds compared with parallel calc
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}

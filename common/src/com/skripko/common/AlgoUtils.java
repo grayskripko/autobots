@@ -5,12 +5,6 @@ import java.util.Map.Entry;
 
 public class AlgoUtils {
 
-
-
-	public enum Option {
-		DESC
-	}
-
 	public static String getSiteName(String url) {
 		if (url == null || url.isEmpty() || !url.startsWith("http")) {
 			throw new IllegalArgumentException("url must not be empty and starts with [http]");
@@ -20,6 +14,9 @@ public class AlgoUtils {
 		return arr[arr.length - 1];
 	}
 
+	public enum Option {
+		DESC
+	}
 	public static Map sortMapByValue(Map unsortMap, Option... option) {
 		List list = new LinkedList(unsortMap.entrySet());
 		if (option.length != 0 && option[0] == Option.DESC) {

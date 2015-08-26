@@ -1,8 +1,8 @@
-package com.skripko.common;
+package com.skripko.task;
 
 import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.SelenideElement;
-import com.skripko.common.ProxyUtils.Option;
+import com.skripko.common.ExcelIO;
 import org.openqa.selenium.By;
 
 import java.util.ArrayList;
@@ -15,31 +15,13 @@ import static com.codeborne.selenide.Condition.and;
 import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Selenide.*;
 import static com.skripko.common.ExcelIO.Mode.WRITE;
-import static com.skripko.common.ProxyUtils.getConnectionSpeed;
-import static com.skripko.common.ProxyUtils.getProxyInfoList;
-import static com.skripko.common.SelenideUtils.BrowserType.CHROME;
 import static com.skripko.common.SelenideUtils.*;
 
-//todo choose speed proxy for checking bun settings
-//todo smart email scraper. Find about, contacts, persons links and buttons
 
-public class Main {
-	public static final boolean isBrowserConfigured = configureBrowser(CHROME);
-	public static final String START_URL = "https://nces.ed.gov/surveys/pss/privateschoolsearch/";
+public class PrivateSchool {
 
-	public static void main(String[] args) throws Exception {
-		List<String> proxyListRows = getProxyInfoList(Option.FORCE_UPDATE);
-		List<String> fastProxies = ProxyUtils.getFastestProxies(proxyListRows);
-		print(fastProxies);
-		print("Clear ip speed: " + getConnectionSpeed());
-		if (true) return;
-
-
-
-//		applyProxy$ClosePrevBrowser(proxyListRows.get(0));
-//		print("isProxyWorks$Refresh(): " + isProxyWorks$Refresh$Refresh());
-		open(START_URL);
-
+	public static void process() {
+		open("https://nces.ed.gov/surveys/pss/privateschoolsearch/");
 		SelenideElement selectEl = $("font > select");
 		List<String> statesOption = new ArrayList<>(Arrays.asList(selectEl.$$("option").getTexts()));
 		statesOption.remove(0);
@@ -93,6 +75,4 @@ public class Main {
 		new ExcelIO("School.xlsx", WRITE, true).writeList(schools);
 		print("<<");
 	}
-
-
 }

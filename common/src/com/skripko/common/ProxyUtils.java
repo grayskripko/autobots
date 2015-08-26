@@ -4,16 +4,13 @@ import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.Screenshots;
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
-import com.skripko.common.object.Transaction;
+import com.skripko.object.Transaction;
 import com.sun.istack.internal.Nullable;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.Proxy.ProxyType;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -28,6 +25,7 @@ import static com.skripko.common.SelenideUtils.print;
 
 public class ProxyUtils {
 	public static String realIp;
+
 	public enum Option {
 		FORCE_UPDATE
 	}
@@ -52,7 +50,7 @@ public class ProxyUtils {
 	public static List<String> getProxyInfoList(Option... option) {
 		print(">> getProxyInfoList");
 		String cacheFileName = "proxyListCache.txt";
-		int timeForUpdate = 20;
+		final int timeForUpdate = 20;
 //		if (fromCache.length > 0 && fromCache[0] && new File(cacheFileName).exists()) {
 		if (new File(cacheFileName).exists()
 				&& (System.currentTimeMillis() - new File(cacheFileName).lastModified()) / (1000 * 60) < timeForUpdate
@@ -93,41 +91,47 @@ public class ProxyUtils {
 		return proxyListRows;
 	}
 
-	public static List<String> getFastestProxies(List<String> proxyInfos, int... wishedProxiesCount) {
-		print(">> getFastestProxies");
+	public static List<String> getFastProxies(List<String> proxyInfos, int... wishedProxiesCount) {
+		print(">> getFastProxies");
 		final long fakeDurationForBadProxy = 99999;
-		final int maxProxyListCheckedLength = 30;
-		final long timeout = 60;
+		final long effectiveTimeoutForProxy = 20; //Clear ip speed: 1249, {14.152.49.193:8080=14853, 222.39.64.74:8118=15063, 117.136.234.4:80=15532, 117.136.234.2:80=15619, 117.136.234.8:80=16037, 117.136.234.1:80=16317, 14.152.49.194:8080=16860, 36.250.75.99:80=16907, 58.30.233.196:8080=16916, 113.207.56.77:80=17287, 112.93.114.49:8080=17695, 117.136.234.12:80=18360, 113.207.56.78:8088=18435, 222.39.87.21:8118=20215, 220.255.3.131:8080=20927, 117.136.234.18:80=25244, 122.143.19.147:8088=26094, 94.45.65.94:3128=26214, 112.93.114.49:8088=27618, 106.39.79.67:80=37552, 14.152.49.193:80=44280, 183.207.128.47:13101=45302, 120.198.237.5:80=47449, 36.250.75.98:80=48017, 183.250.91.33:8080=48111, 183.250.91.33:8088=53968, 94.225.49.208:80=99999, 113.215.0.130:80=99999, 62.176.13.22:8088=99999, 120.198.237.5:9000=99999}
+		int resultLimit = wishedProxiesCount.length == 0 ? 5 : wishedProxiesCount[0];
 
-		List<String> proxyInfosCutted = proxyInfos.size() > maxProxyListCheckedLength ?
-				proxyInfos.subList(0, maxProxyListCheckedLength) : proxyInfos;
-		Map<String, Long> proxyTime = proxyInfosCutted.stream().collect(Collectors.toMap(
-				proxyInfo -> proxyInfo, proxyInfo -> {
-					Transaction tx = new Transaction(timeout, Transaction.Option.SOFT_ERROR);
-					return (Long) tx.executeWithTimeLimit(() -> {
-						long start = System.currentTimeMillis();
-						applyProxy$ClosePrevBrowser(proxyInfo);
-						boolean isIpInvisible = isProxyWorks$Refresh();
-						return isIpInvisible ? System.currentTimeMillis() - start : fakeDurationForBadProxy;
-					});
-				}));
+		Map<String, Long> proxyTimeLimited = new LinkedHashMap<>();
+		for (String proxyInfo : proxyInfos) {
+			if (resultLimit < 1) {
+				break;
+			}
+			Transaction tx = new Transaction(effectiveTimeoutForProxy, Transaction.Option.SOFT_ERROR);
+			Long txExecutionResult = (Long) tx.executeWithTimeLimit(() -> {
+				long start = System.currentTimeMillis();
+				applyProxy$ClosePrevBrowser(proxyInfo);
+				boolean isIpInvisible = isProxyWorks$Refresh();
+				Long result = null; //merge this null with null of timeout exception
+				if (isIpInvisible) {
+					result = System.currentTimeMillis() - start;
+				}
+				return result;
+			});
+			if (txExecutionResult != null) {
+				proxyTimeLimited.put(proxyInfo, txExecutionResult);
+				print(String.format("Rest: %s, proxy: %s, speed: %s", --resultLimit, proxyInfo, txExecutionResult));
+			}
+		}
+
+		Map<String, Integer> proxyTimeSorted = AlgoUtils.sortMapByValue(proxyTimeLimited);
+		List<String> resultSliced = new ArrayList<>(proxyTimeSorted.keySet());
+		print(proxyTimeSorted);
 
 		applyProxy$ClosePrevBrowser(null);
-		print("cleared ip. IsProxyWorks$Refresh(): " + isProxyWorks$Refresh());
-
-		Map<String, Integer> proxyTimeSorted = AlgoUtils.sortMapByValue(proxyTime);
-		print(proxyTimeSorted); //todo remove
-		List<String> resultSliced = new ArrayList<>(proxyTimeSorted.keySet());
-
-		int resultLimit = 5;
-		print("<< getFastestProxies");
-		return wishedProxiesCount.length == 0 ?
-				resultSliced.subList(0, resultLimit) : resultSliced.subList(0, wishedProxiesCount[0]);
+		print("Clear ip speed: " + getConnectionSpeed());
+		print("<< getFastProxies");
+		return resultSliced;
 	}
 
 	/**
 	 * It can be used for removing proxy
-	 * */
+	 */
 	public static void applyProxy$ClosePrevBrowser(@Nullable String proxyInfo) {
 		closeWebDriver();
 		Proxy proxy = null;
@@ -157,9 +161,12 @@ public class ProxyUtils {
 		return currentIp;
 	}
 
-	public static long getConnectionSpeed() {
+	public static long getConnectionSpeed(boolean... printAmazonIp) {
 		long start = System.currentTimeMillis();
-		getCurrentIpAmazon();
+		String amazonIp = getCurrentIpAmazon();
+		if (printAmazonIp.length != 0 && printAmazonIp[0]) {
+			print("Current IP: " + amazonIp);
+		}
 		getCurrentIpWhatismy();
 		return System.currentTimeMillis() - start;
 	}
@@ -170,7 +177,7 @@ public class ProxyUtils {
 		}
 
 		try {
-			String amazonIp =  getCurrentIpAmazon();
+			String amazonIp = getCurrentIpAmazon();
 			boolean amazonOpinion = !realIp.equals(amazonIp);
 			String whatismyIp = getCurrentIpWhatismy();
 			boolean whatismyOpinion = !realIp.equals(whatismyIp);

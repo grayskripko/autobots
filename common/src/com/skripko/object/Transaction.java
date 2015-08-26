@@ -1,11 +1,13 @@
-package com.skripko.common.object;
+package com.skripko.object;
 
 import com.sun.istack.internal.Nullable;
 
 import java.util.concurrent.*;
 
+import static com.skripko.common.SelenideUtils.print;
+
 public class Transaction {
-	private long timeout = 60;
+	private long timeout = 20;
 	private Option option;
 	public enum Option {
 		SOFT_ERROR
@@ -33,7 +35,7 @@ public class Transaction {
 			return oneTaskResult.get(timeout, TimeUnit.SECONDS);
 		} catch (Throwable th) {
 			if (option == Option.SOFT_ERROR) {
-				th.printStackTrace();
+				print("> Soft transaction throwable message: " + th.getMessage());
 				return null;
 			} else {
 				throw new RuntimeException(th);
