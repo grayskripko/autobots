@@ -43,7 +43,7 @@ public class PrivateSchool {
 
 		for (String choosedState : choosedStates) {
 			selectEl.selectOption(choosedState);
-			openNewTabAndMap($("input[type=\"submit\"]"), uselessIn -> { //for every choosed state
+			openNewTabAndMap($("input[type=\"submit\"]"), () -> { //for every choosed state
 				while (true) {
 					SelenideElement rawTableEl = $$("div.sfsContent > table").filter(and(null, text("School Name"), text("Phone"))).get(0);
 					ElementsCollection searchResultTitles = rawTableEl.$$("td[bgcolor='#EDFFE8'] > table > tbody > tr");
@@ -52,7 +52,7 @@ public class PrivateSchool {
 						School bean = new School(choosedState);
 						bean.schoolName = schoolNameEl.getText();
 						bean.grade = schoolListRow.$("tr table tr > td:last-child").getText();
-						bean.affiliation = openNewTabAndMap(schoolNameEl, useless2In -> {
+						bean.affiliation = openNewTabAndMap(schoolNameEl, () -> {
 							String affiliationInner = $("div.sfsContent > table > tbody > tr:nth-child(10) > td > table > tbody > tr > td:nth-child(3) > table > tbody > tr:nth-child(12) > td:nth-child(2)").getText();
 							return affiliationInner.isEmpty() ? "N" : affiliationInner;
 						}).get(0);

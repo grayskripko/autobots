@@ -1,6 +1,7 @@
 package com.skripko.common;
 
-import com.skripko.object.RowObject;
+import com.skripko.object.dao.RowObject;
+import com.skripko.object.dao.StorageObject;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -13,7 +14,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class ExcelIO {
-	private static final String DEFAULT_FILE_LOCATION = System.getProperty("user.home") + "/Desktop/javaOut/";
+	public static final String DEFAULT_FILE_LOCATION = System.getProperty("user.home") + "/Desktop/out/";
 	private String fullPath;
 	private FileOutputStream outStream;
 	private FileInputStream inStream;
@@ -57,6 +58,10 @@ public class ExcelIO {
 		XSSFRow row = sheet.createRow(rowIndex++);
 		int colIndex = 0;
 		for (Object obj : msg) {
+			if (obj == null) {
+				row.createCell(colIndex++).setCellValue("null");
+				continue;
+			}
 			String s = obj.toString();
 			boolean isNumeric = s.matches("-?\\d+");
 			if (isNumeric) {
@@ -230,26 +235,33 @@ public class ExcelIO {
 		}
 	}
 
-	public List<RowObject> readList(int... sheetIndexArg) {
-		int sheetIndex = sheetIndexArg.length == 0 ? 1 : sheetIndexArg[0];
-		Iterator<Cell> cellIterator = getHeaderCellIterator(sheetIndex);
+	public List<RowObject> readList(int... sheetIndexArg) { //todo check for bug
+		int sheetIndex = sheetIndexArg.length == 0 ? 0 : sheetIndexArg[0];
+		sheet = book.getSheetAt(sheetIndex);
 
-		List<String> header = new ArrayList<>();
-		while (cellIterator.hasNext()) {
-			Cell cell = cellIterator.next();
-			header.add(cell.getStringCellValue());
+		if (RowObject.needBuild()) {
+			Iterator<Cell> headerCellIterator;
+			headerCellIterator = getHeaderCellIterator(sheetIndex);
+			List<String> header = new ArrayList<>();
+			while (headerCellIterator.hasNext()) {
+				Cell cell = headerCellIterator.next();
+				header.add(cell.getStringCellValue());
+			}
+			RowObject.build(header);
 		}
-		RowObject.sculptShapeByHeader(header);
 
 		List<RowObject> result = new LinkedList<>();
-		for(int i = 1; i < header.size(); i++) {
-			cellIterator = sheet.getRow(i).cellIterator();
-			RowObject rowObject = new RowObject();
+		Iterator<Row> rowIterator = sheet.rowIterator(); //todo check if need build of rowObject //
+		for (int i = 0; sheet.getRow(++i) != null; ) { //read one line
+			XSSFRow curRow = sheet.getRow(i);
+			Iterator<Cell> cellIterator = curRow.cellIterator();
+			List<String> list = new LinkedList<>();
 			while (cellIterator.hasNext()) {
 				Cell cell = cellIterator.next();
-				rowObject.setNextField(cell.getStringCellValue());
+				list.add(cell.getStringCellValue());
 			}
-			result.add(rowObject);
+			result.add(new RowObject(list.toArray(new String[list.size()])));
+			rowIterator.next();
 		}
 		return result.isEmpty() ? null : result;
 	}
@@ -257,9 +269,9 @@ public class ExcelIO {
 	public void writeList(List objects) {
 		Object instance = objects.get(0);
 		if (instance instanceof RowObject) {
-			List<String> fieldsStr = ((RowObject) instance).getFields();
+			List<String> fieldsStr = RowObject.getLabels();
 			printRow(fieldsStr.<String>toArray());
-			objects.stream().forEachOrdered(object -> printRow(((RowObject) object).getValues().values().<String>toArray()));
+			objects.stream().forEachOrdered(object -> printRow(((StorageObject) object).getClearValues().<String>toArray()));
 		} else if (instance instanceof String) {
 			objects.stream().forEachOrdered(this::printRow);
 		} else { //it is expected that object is simple class with open non-private fields
@@ -279,9 +291,24 @@ public class ExcelIO {
 		close();
 	}
 
+	public static void appendList$ClearList(List objects, String fileName, boolean... hasHeader) {
+		String fullPath = DEFAULT_FILE_LOCATION + (fileName.contains(".") ? fileName : fileName + ".xlsx");
+		if (new File(fullPath).exists()) {
+			List alreadySaved = new ExcelIO(fileName, Mode.READ, hasHeader).readList();
+			if (alreadySaved == null) {
+				new ExcelIO(fileName, Mode.WRITE, hasHeader).writeList(objects);
+			} else {
+				alreadySaved.addAll(objects);
+				new ExcelIO(fileName, Mode.WRITE, hasHeader).writeList(alreadySaved);
+			}
+		} else {
+			new ExcelIO(fileName, Mode.WRITE, hasHeader).writeList(objects);
+		}
+		objects = new ArrayList<>();
+	}
 
 	public static void test() {
-		boolean testRowObject = false;
+		boolean testRowObject = true;
 
 		class TestClassForMain {
 			String name;
@@ -295,7 +322,7 @@ public class ExcelIO {
 		ExcelIO excelIO = new ExcelIO("1.xlsx", Mode.WRITE, true);
 		List<Object> objects = new LinkedList<>();
 		if (testRowObject) {
-			RowObject.sculptShapeByHeader(Arrays.asList("schoolName", "state"));
+			RowObject.build(Arrays.asList("schoolName", "state"));
 			objects.add(new RowObject("FirstSchoolName", "FirstState"));
 			objects.add(new RowObject("SecondSchoolName", "SecondState"));
 		} else {
@@ -315,7 +342,7 @@ public class ExcelIO {
 	}
 
 	public static void main(String[] args) {
-//		test()
-		clearCsv("auto.csv");
+		test();
+//		clearCsv("auto.csv");
 	}
 }

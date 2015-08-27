@@ -11,8 +11,6 @@ import org.openqa.selenium.Proxy.ProxyType;
 
 import java.io.File;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.codeborne.selenide.Condition.*;
@@ -195,11 +193,7 @@ public class ProxyUtils {
 	public static String getCurrentIpFrom2ipRu() {
 		open("http://2ip.ru/privacy/");
 		String messageAboutIp = $("#content > p").getText();
-		Matcher matcher = Pattern.compile("([\\d\\.]+)").matcher(messageAboutIp);
-		if (!matcher.find()) {
-			return null;
-		}
-		String currentIp = matcher.group(0);
+		String currentIp = AlgoUtils.getFirstRegexMatch(messageAboutIp, "([\\d\\.]+)");
 		realIp = realIp == null ? currentIp : realIp;
 		return currentIp;
 	}

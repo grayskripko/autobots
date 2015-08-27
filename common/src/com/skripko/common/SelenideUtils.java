@@ -3,10 +3,8 @@ package com.skripko.common;
 import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.Keys;
-import org.openqa.selenium.Proxy;
-import org.openqa.selenium.WebDriver;
+import com.skripko.object.Transaction;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -20,10 +18,14 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -31,6 +33,7 @@ import static com.codeborne.selenide.Selenide.switchTo;
 import static com.codeborne.selenide.WebDriverRunner.closeWebDriver;
 import static com.codeborne.selenide.WebDriverRunner.getWebDriver;
 import static com.skripko.common.ProxyUtils.getConnectionSpeed;
+import static com.skripko.object.Transaction.Option.SOFT_ERROR;
 import static org.openqa.selenium.remote.CapabilityType.*;
 
 public class SelenideUtils {
@@ -39,9 +42,11 @@ public class SelenideUtils {
 	public static final int AJAX_WAIT = 3;
 	public static final String DRIVER_PATH = System.getProperty("user.dir") + "\\common\\src\\resources\\";
 	public static long delayBetweenClicks = 1000;
+
 	public enum BrowserType {
 		CHROME, FIREFOX, PHANTOMJS, HTMLUNIT
 	}
+
 	public enum BrowserCapability {
 		holdBrowserOpen, startMaximized, screenshots
 	}
@@ -87,13 +92,13 @@ public class SelenideUtils {
 			print("Current speed: " + getConnectionSpeed(true));
 			closeWebDriver();
 		});
-
-		try {
-			thread.start();
-			thread.join();  //consumes about 5 seconds compared with parallel calc
+		thread.start();
+		/*try {
+			thread.join();
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
-		}
+		}*/
+
 		return true;
 	}
 
@@ -132,9 +137,11 @@ public class SelenideUtils {
 		WebDriverRunner.setWebDriver(new PhantomJSDriver(dcaps));
 	}
 
-	@SafeVarargs
-	public static List<String> openNewTabAndMap(SelenideElement mainEl, Function<String, String>... functions) {
-		if (functions == null || functions.length == 0) {
+	/**
+	 * more flexible with function vararg, don't touch without monitoring all dependencies
+	 */
+	public static List<String> openNewTabAndMap(SelenideElement mainEl, Supplier<String>... suppliers) {
+		if (suppliers == null) {
 			throw new IllegalArgumentException();
 		}
 		String mainTabHandle = getWebDriver().getWindowHandle();
@@ -146,14 +153,28 @@ public class SelenideUtils {
 			secondDriver = switchTo().window(openTabsCount);
 		} catch (IndexOutOfBoundsException ignored) {
 			humanWait(4000);
-			secondDriver = switchTo().window(openTabsCount);
+			try {
+				secondDriver = switchTo().window(openTabsCount);
+			} catch (IndexOutOfBoundsException ignoredTwo) {
+				print("!!! Can not found second tab");
+				return null;
+			}
 		}
-		List<String> result = Arrays.asList(functions).stream().map(
-				function -> function.apply(null)).collect(Collectors.toList());
+		List<String> result = Arrays.asList(suppliers).stream().map(Supplier::get).collect(Collectors.toList());
 //		$("#content").screenshot();
 		secondDriver.close();
 		switchTo().window(mainTabHandle);
 		return result;
+	}
+
+	//todo change for work
+	public static List<String> txOpenNewTabAndMap(SelenideElement mainEl, Supplier<String>... suppliers) {
+		Thread mainThread = Thread.currentThread();
+
+		List<String> txResult = (List<String>) new Transaction(20000, SOFT_ERROR)
+				.executeWithTimeLimit(() -> openNewTabAndMap(mainEl, suppliers)
+		);
+		return txResult;
 	}
 
 	protected void waitForPageLoad(int timeout) {
@@ -192,14 +213,39 @@ public class SelenideUtils {
 		}
 	}
 
-	public static void print(Object str) {
-		System.out.println(String.format("[%ssec] %s", (System.currentTimeMillis() - startTime) / 1000, String.valueOf(str)));
+	public static void print(Object mesObj) {
+		System.out.println(String.format("[%ssec] %s", (System.currentTimeMillis() - startTime) / 1000, String.valueOf(mesObj)));
 	}
 
+	public static void print(Object mesObj, Object... values) {
+		String mes = String.format(String.valueOf(mesObj), values);
+		System.out.println(String.format("[%ssec] %s", (System.currentTimeMillis() - startTime) / 1000, mes));
+	}
 
+	public static Object retryUntilAttached(Supplier<Object> callable) { //todo add attempts count and null return
+		while (true) {
+			try {
+				return callable.get();
+			} catch (StaleElementReferenceException e) {
+				print("Trying once again");
+			}
+		}
+	}
 
+	public static boolean saveImage(String imageUrl, String imageName) { //"http://www.yahoo.com/image_to_read.jpg"
+		BufferedImage image = null;
+		try {
+			URL url = new URL(imageUrl);
+			image = ImageIO.read(url);
+			String extension = AlgoUtils.getFirstRegexMatch(imageUrl, "(?<=\\.)\\w+\\s*$");
+			return ImageIO.write(image, extension, new File(ExcelIO.DEFAULT_FILE_LOCATION + imageName));
+		} catch (IOException e) {
+			print("Can not save image: %s", imageUrl);
+			return false;
+		}
+	}
 	/*
-        setValue(By.name("user.name"), "johny");
+		setValue(By.name("user.name"), "johny");
         selectRadio("user.gender", "male");
         selectOption(By.name("user.preferredLayout"), "plain");
         selectOptionByText(By.name("user.securityQuestion"), "What is my first car?");
@@ -222,18 +268,6 @@ public class SelenideUtils {
         String code = "window.scroll(" + (webElement.getLocation().x + x) + "," + (webElement.getLocation().y + y) + ");";
 		((JavascriptExecutor)driver).executeScript(code, webElement, x, y);
 		((JavascriptExecutor) WebDriverRunner.getWebDriver()).executeScript("return document.readyState;");
-		getWebDriver().getWindowHandles()
 		Selenide.switchToWindow("Test::alerts");
-		switchToWindow(0);
-		new Actions(WebDriver)
-			.KeyDown(Keys.Control)
-			.KeyDown(Keys.Shift)
-			.Click(tab)
-			.KeyUp(Keys.Shift)
-			.KeyUp(Keys.Control)
-			.Perform();
-		new Actions(WebDriver)
-			.SendKeys(Keys.Control + "w")
-			.Perform();
      */
 }

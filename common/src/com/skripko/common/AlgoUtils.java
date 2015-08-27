@@ -2,6 +2,8 @@ package com.skripko.common;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AlgoUtils {
 
@@ -33,5 +35,13 @@ public class AlgoUtils {
 			sortedMap.put(entry.getKey(), entry.getValue());
 		}
 		return sortedMap;
+	}
+
+	public static String getFirstRegexMatch(String text, String regex) {
+		Matcher matcher = Pattern.compile(regex).matcher(text);
+		if (!matcher.find()) {
+			return null;
+		}
+		return matcher.group(0);
 	}
 }
