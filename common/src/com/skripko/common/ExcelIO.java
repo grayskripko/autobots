@@ -71,7 +71,7 @@ public class ExcelIO {
 				row.createCell(colIndex++).setCellValue(s);
 			}
 		}
-	}
+	} //todo remove this shit. Correct read method instead
 
 	public void createSheet(String sheetName) {
 		sheet = book.createSheet(sheetName);

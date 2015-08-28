@@ -30,9 +30,7 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import static com.codeborne.selenide.Selenide.switchTo;
-import static com.codeborne.selenide.WebDriverRunner.closeWebDriver;
 import static com.codeborne.selenide.WebDriverRunner.getWebDriver;
-import static com.skripko.common.ProxyUtils.getConnectionSpeed;
 import static com.skripko.object.Transaction.Option.SOFT_ERROR;
 import static org.openqa.selenium.remote.CapabilityType.*;
 
@@ -88,12 +86,12 @@ public class SelenideUtils {
 			case HTMLUNIT:
 		}
 
-		Thread thread = new Thread(() -> {
+		/*Thread thread = new Thread(() -> {
 			print("Current speed: " + getConnectionSpeed(true));
 			closeWebDriver();
 		});
 		thread.start();
-		/*try {
+		try {
 			thread.join();
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
@@ -173,7 +171,7 @@ public class SelenideUtils {
 
 		List<String> txResult = (List<String>) new Transaction(20000, SOFT_ERROR)
 				.executeWithTimeLimit(() -> openNewTabAndMap(mainEl, suppliers)
-		);
+				);
 		return txResult;
 	}
 
