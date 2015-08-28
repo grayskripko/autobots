@@ -49,9 +49,9 @@ public class MainFreelanceComp {
 		excelIO.createSheet(instance.getSite());
 		List<String> columnNames = Arrays.asList(instance.getClass().getDeclaredFields()).stream()
 				.map(Field::getName).collect(Collectors.toList());
-		excelIO.printRow(columnNames.toArray(new String[columnNames.size()]));
+		excelIO.printRow(false, columnNames.toArray(new String[columnNames.size()]));
 		for (Job job : jobs) {
-			excelIO.printRow(job.getSite(), job.getQueryName(), job.getUrl(), job.getProposalCount(), job.getLifeDuration());
+			excelIO.printRow(false, job.getSite(), job.getQueryName(), job.getUrl(), job.getProposalCount(), job.getLifeDuration());
 		}
 		excelIO.close();
 		System.out.printf("Program execution finished, duration=%s\n", System.currentTimeMillis() - startTime);

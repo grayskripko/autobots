@@ -26,12 +26,7 @@ public class Item extends StorageObject {
 		List<String> notFoundEls = new ArrayList<>();
 		Item item = new Item();
 		if (check404()) {
-			print("404 - %s", itemUrlId);
-			for (FieldSelector fieldSelector : contentNameCssPath) {
-				item.pairs.add(new Pair(fieldSelector.getName(), null));
-			}
-			item.pairs.get(0).changeValue("404: " + itemUrlId);
-			return item;
+			return getNullItemWithMessage("404: ", itemUrlId);
 		}
 		SelenideElement root = $(itemCssPath);
 		for (FieldSelector fieldSelector : contentNameCssPath) {
@@ -63,6 +58,16 @@ public class Item extends StorageObject {
 		if (!notFoundEls.isEmpty()) {
 			print("Missed: %s, id: %s", notFoundEls.stream().collect(Collectors.joining(", ")), itemUrlId);
 		}
+		return item;
+	}
+
+	public static Item getNullItemWithMessage(String message, String itemUrlId) {
+		Item item = new Item();
+		for (FieldSelector fieldSelector : contentNameCssPath) {
+			item.pairs.add(new Pair(fieldSelector.getName(), null));
+		}
+		item.pairs.get(0).changeValue(String.format("%s: %s", message, itemUrlId));
+		print("%s: %s", message, itemUrlId);
 		return item;
 	}
 

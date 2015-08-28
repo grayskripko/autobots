@@ -13,6 +13,8 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.skripko.common.SelenideUtils.print;
+
 public class ExcelIO {
 	public static final String DEFAULT_FILE_LOCATION = System.getProperty("user.home") + "/Desktop/out/";
 	private String fullPath;
@@ -51,7 +53,7 @@ public class ExcelIO {
 		}
 	}
 
-	public void printRow(Object... msg) {
+	public void printRow(boolean printAsString, Object... msg) {
 		if (sheet == null) {
 			createSheet("Unnamed");
 		}
@@ -63,8 +65,7 @@ public class ExcelIO {
 				continue;
 			}
 			String s = obj.toString();
-			boolean isNumeric = s.matches("-?\\d+");
-			if (isNumeric) {
+			if (!printAsString && s.matches("-?\\d+")) {
 				row.createCell(colIndex++).setCellValue(Double.parseDouble(s));
 			} else {
 				row.createCell(colIndex++).setCellValue(s);
@@ -102,19 +103,6 @@ public class ExcelIO {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	public List readColumn(int sheetIndex, String columnName) {
-		Iterator<Cell> cellIterator = getHeaderCellIterator(sheetIndex);
-		int i = 0;
-		while (cellIterator.hasNext()) {
-			Cell cell = cellIterator.next();
-			if (columnName.equals(cell.getStringCellValue())) {
-				return readColumn(sheetIndex, i);
-			}
-			i++;
-		}
-		throw new IllegalArgumentException("No such column");
 	}
 
 	private Iterator<Cell> getHeaderCellIterator(int sheetIndex) {
@@ -270,16 +258,16 @@ public class ExcelIO {
 		Object instance = objects.get(0);
 		if (instance instanceof RowObject) {
 			List<String> fieldsStr = RowObject.getLabels();
-			printRow(fieldsStr.<String>toArray());
-			objects.stream().forEachOrdered(object -> printRow(((StorageObject) object).getClearValues().<String>toArray()));
+			printRow(true, fieldsStr.<String>toArray());
+			objects.stream().forEachOrdered(object -> printRow(true, ((StorageObject) object).getClearValues().<String>toArray()));
 		} else if (instance instanceof String) {
-			objects.stream().forEachOrdered(this::printRow);
+			objects.stream().forEachOrdered(object -> printRow(true, object));
 		} else { //it is expected that object is simple class with open non-private fields
 			Class aClass = objects.get(0).getClass();
 			List<Field> fields = Arrays.asList(aClass.getDeclaredFields());
-			printRow(fields.stream().map(Field::getName).collect(Collectors.toList()).<String>toArray());
+			printRow(true, fields.stream().map(Field::getName).collect(Collectors.toList()).<String>toArray());
 			objects.stream().forEachOrdered(object ->
-				printRow(fields.stream().map(field -> {
+				printRow(true, fields.stream().map(field -> {
 					try {
 						return String.valueOf(field.get(object));
 					} catch (IllegalAccessException e) {
@@ -292,6 +280,10 @@ public class ExcelIO {
 	}
 
 	public static void appendList$ClearList(List objects, String fileName, boolean... hasHeader) {
+		if (objects == null || objects.isEmpty()) {
+			print("WARN: empty list to can not be appended");
+			return;
+		}
 		String fullPath = DEFAULT_FILE_LOCATION + (fileName.contains(".") ? fileName : fileName + ".xlsx");
 		if (new File(fullPath).exists()) {
 			List alreadySaved = new ExcelIO(fileName, Mode.READ, hasHeader).readList();
@@ -304,7 +296,29 @@ public class ExcelIO {
 		} else {
 			new ExcelIO(fileName, Mode.WRITE, hasHeader).writeList(objects);
 		}
-		objects = new ArrayList<>();
+		objects.removeAll(objects);
+	}
+
+	public int defineRowsCount(boolean... needClose) {
+		checkInStream();
+		int defaultSheetIndex = 0;
+		sheet = book.getSheetAt(defaultSheetIndex);
+
+		Iterator<Row> rowIterator = sheet.rowIterator();
+		if (hasHeader) {
+			rowIterator.next();
+		}
+		int result = 0;
+		while (rowIterator.hasNext()) {
+			rowIterator.next();
+			result++;
+		}
+
+		if (needClose.length != 0 && needClose[0]) {
+			close();
+		}
+		return result;
+
 	}
 
 	public static void test() {
